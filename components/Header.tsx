@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 const navLinks = [
   { href: '/', label: '首页' },
   { href: '/posts/welcome', label: '博客' },
+  { href: '/admin', label: '管理' },
 ]
 
 export function Header() {

@@ -1,10 +1,24 @@
 import Link from 'next/link'
-import { getAllPosts } from '@/lib/posts'
+import { prisma } from '@/lib/prisma'
 import { formatDate, cn } from '@/lib/utils'
 import { ArrowRight, Calendar, Tag } from 'lucide-react'
 
-export default function HomePage() {
-  const posts = getAllPosts()
+export const revalidate = 60
+export const dynamic = 'force-dynamic'
+
+async function getPosts() {
+  try {
+    return await prisma.post.findMany({
+      where: { published: true },
+      orderBy: { createdAt: 'desc' },
+    })
+  } catch {
+    return []
+  }
+}
+
+export default async function HomePage() {
+  const posts = await getPosts()
 
   return (
     <div className="min-h-screen">
@@ -31,48 +45,27 @@ export default function HomePage() {
               </svg>
             </div>
             <h3 className="text-lg font-semibold mb-2">还没有文章</h3>
-            <p className="text-[hsl(var(--muted-foreground))]">在 posts/ 目录下创建 .md 文件即可添加文章</p>
+            <p className="text-[hsl(var(--muted-foreground))]">去管理后台写第一篇博客吧</p>
           </div>
         ) : (
-          <div className={cn(
-            'grid gap-6',
-            posts.length === 1 ? 'max-w-xl' : 'md:grid-cols-2 lg:grid-cols-3'
-          )}>
+          <div className={cn('grid gap-6', posts.length === 1 ? 'max-w-xl' : 'md:grid-cols-2 lg:grid-cols-3')}>
             {posts.map((post, i) => (
-              <Link
-                key={post.slug}
-                href={`/posts/${post.slug}`}
+              <Link key={post.id} href={`/posts/${post.slug}`}
                 className={cn(
                   'group relative overflow-hidden rounded-2xl border bg-[hsl(var(--card))] p-6',
                   'hover:shadow-lg hover:shadow-[hsl(var(--accent))/5] hover:border-[hsl(var(--accent))/30]',
-                  'transition-all duration-300',
-                  i === 0 && posts.length > 1 && 'md:col-span-2'
+                  'transition-all duration-300', i === 0 && posts.length > 1 && 'md:col-span-2'
                 )}
-                style={{ animationDelay: `${i * 100}ms` }}
-              >
+                style={{ animationDelay: `${i * 100}ms` }}>
                 <div className="flex flex-col h-full">
                   <div className="flex items-center gap-2 text-xs text-[hsl(var(--muted-foreground))] mb-3">
-                    <Calendar size={14} />
-                    <time>{formatDate(post.date)}</time>
-                    {post.tags && (
-                      <>
-                        <span>·</span>
-                        <Tag size={14} />
-                        <span>{post.tags.split(',')[0].trim()}</span>
-                      </>
-                    )}
+                    <Calendar size={14} /><time>{formatDate(post.createdAt)}</time>
+                    {post.tags && <><span>·</span><Tag size={14} /><span>{post.tags.split(',')[0].trim()}</span></>}
                   </div>
-                  <h2 className={cn(
-                    'font-bold tracking-tight group-hover:text-[hsl(var(--accent))] transition-colors',
-                    i === 0 && posts.length > 1 ? 'text-2xl' : 'text-lg'
-                  )}>
+                  <h2 className={cn('font-bold tracking-tight group-hover:text-[hsl(var(--accent))] transition-colors', i === 0 && posts.length > 1 ? 'text-2xl' : 'text-lg')}>
                     {post.title}
                   </h2>
-                  {post.excerpt && (
-                    <p className="mt-2 text-sm text-[hsl(var(--muted-foreground))] line-clamp-2">
-                      {post.excerpt}
-                    </p>
-                  )}
+                  {post.excerpt && <p className="mt-2 text-sm text-[hsl(var(--muted-foreground))] line-clamp-2">{post.excerpt}</p>}
                   <div className="mt-auto pt-4">
                     <span className="inline-flex items-center gap-1 text-sm font-medium text-[hsl(var(--accent))]">
                       阅读更多 <ArrowRight size={14} className="transition-transform group-hover:translate-x-1" />
