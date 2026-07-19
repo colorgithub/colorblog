@@ -1,19 +1,13 @@
 import Link from 'next/link'
-import { prisma } from '@/lib/prisma'
+import { getAllPosts } from '@/lib/posts'
 import { formatDate, cn } from '@/lib/utils'
 import { ArrowRight, Calendar, Tag } from 'lucide-react'
 
-export const revalidate = 60
-
-export default async function HomePage() {
-  const posts = await prisma.post.findMany({
-    where: { published: true },
-    orderBy: { createdAt: 'desc' },
-  })
+export default function HomePage() {
+  const posts = getAllPosts()
 
   return (
     <div className="min-h-screen">
-      {/* Hero */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--accent))/5] via-transparent to-transparent" />
         <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-20 pb-16 sm:pt-28 sm:pb-20">
@@ -28,7 +22,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Posts */}
       <section className="max-w-5xl mx-auto px-4 sm:px-6 pb-20">
         {posts.length === 0 ? (
           <div className="text-center py-20">
@@ -38,7 +31,7 @@ export default async function HomePage() {
               </svg>
             </div>
             <h3 className="text-lg font-semibold mb-2">还没有文章</h3>
-            <p className="text-[hsl(var(--muted-foreground))]">快来写第一篇博客吧</p>
+            <p className="text-[hsl(var(--muted-foreground))]">在 posts/ 目录下创建 .md 文件即可添加文章</p>
           </div>
         ) : (
           <div className={cn(
@@ -47,27 +40,25 @@ export default async function HomePage() {
           )}>
             {posts.map((post, i) => (
               <Link
-                key={post.id}
+                key={post.slug}
                 href={`/posts/${post.slug}`}
                 className={cn(
                   'group relative overflow-hidden rounded-2xl border bg-[hsl(var(--card))] p-6',
                   'hover:shadow-lg hover:shadow-[hsl(var(--accent))/5] hover:border-[hsl(var(--accent))/30]',
                   'transition-all duration-300',
-                  i === 0 && posts.length > 1 && 'md:col-span-2 md:row-span-1'
+                  i === 0 && posts.length > 1 && 'md:col-span-2'
                 )}
-                style={{
-                  animationDelay: `${i * 100}ms`,
-                }}
+                style={{ animationDelay: `${i * 100}ms` }}
               >
                 <div className="flex flex-col h-full">
                   <div className="flex items-center gap-2 text-xs text-[hsl(var(--muted-foreground))] mb-3">
                     <Calendar size={14} />
-                    <time>{formatDate(post.createdAt)}</time>
+                    <time>{formatDate(post.date)}</time>
                     {post.tags && (
                       <>
                         <span>·</span>
                         <Tag size={14} />
-                        <span>{post.tags.split(',')[0]}</span>
+                        <span>{post.tags.split(',')[0].trim()}</span>
                       </>
                     )}
                   </div>

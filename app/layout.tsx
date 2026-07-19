@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import { Toaster } from 'react-hot-toast'
 import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
 import { ThemeProvider } from '@/components/ThemeProvider'
@@ -25,17 +24,6 @@ export default function RootLayout({
           <Header />
           <main className="flex-1">{children}</main>
           <Footer />
-          <Toaster
-            position="top-right"
-            toastOptions={{
-              duration: 3000,
-              style: {
-                borderRadius: '12px',
-                padding: '12px 16px',
-                fontSize: '14px',
-              },
-            }}
-          />
         </ThemeProvider>
       </body>
     </html>

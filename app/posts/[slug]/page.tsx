@@ -1,29 +1,16 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { prisma } from '@/lib/prisma'
+import { getPostBySlug, getAllSlugs } from '@/lib/posts'
 import { formatDate } from '@/lib/utils'
 import { MarkdownRenderer } from '@/components/MarkdownRenderer'
 import { ArrowLeft, Calendar, Tag, Clock } from 'lucide-react'
 
-export const revalidate = 60
-
-export async function generateStaticParams() {
-  const posts = await prisma.post.findMany({
-    where: { published: true },
-    select: { slug: true },
-  })
-  return posts.map((post) => ({ slug: post.slug }))
+export function generateStaticParams() {
+  return getAllSlugs().map((slug) => ({ slug }))
 }
 
-export default async function PostPage({
-  params,
-}: {
-  params: { slug: string }
-}) {
-  const post = await prisma.post.findUnique({
-    where: { slug: params.slug, published: true },
-  })
-
+export default function PostPage({ params }: { params: { slug: string } }) {
+  const post = getPostBySlug(params.slug)
   if (!post) notFound()
 
   const readingTime = Math.ceil(post.content.split(/\s+/).length / 200)
@@ -42,7 +29,7 @@ export default async function PostPage({
         <div className="flex flex-wrap items-center gap-3 text-sm text-[hsl(var(--muted-foreground))] mb-4">
           <span className="inline-flex items-center gap-1.5">
             <Calendar size={14} />
-            {formatDate(post.createdAt)}
+            {formatDate(post.date)}
           </span>
           <span className="inline-flex items-center gap-1.5">
             <Clock size={14} />
