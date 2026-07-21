@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { formatDate } from '@/lib/utils'
 import { MarkdownRenderer } from '@/components/MarkdownRenderer'
+import { CommentsSection } from '@/components/Comments'
 import { ArrowLeft, Calendar, Tag, Clock } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
@@ -41,6 +42,8 @@ export default async function PostPage({ params }: { params: { slug: string } })
       <div className="border-t pt-10">
         <MarkdownRenderer content={post.content} />
       </div>
+
+      <CommentsSection slug={params.slug} />
     </article>
   )
 }

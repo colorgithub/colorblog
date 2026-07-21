@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { getSession } from '@/lib/auth'
+import { getSession, isAdmin } from '@/lib/auth'
 import { AdminSidebar } from '@/components/admin/Sidebar'
 import { redirect } from 'next/navigation'
 import { PostListClient } from './PostListClient'
@@ -8,7 +8,7 @@ import { Plus } from 'lucide-react'
 
 export default async function AdminPostsPage() {
   const session = await getSession()
-  if (!session) redirect('/admin/login')
+  if (!session || !isAdmin(session)) redirect('/admin/login')
 
   const posts = await prisma.post.findMany({ orderBy: { updatedAt: 'desc' } })
   const serialized = posts.map(p => ({

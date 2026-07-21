@@ -1,11 +1,11 @@
-import { getSession } from '@/lib/auth'
+import { getSession, isAdmin } from '@/lib/auth'
 import { AdminSidebar } from '@/components/admin/Sidebar'
 import { redirect } from 'next/navigation'
 import { PostEditor } from '@/components/admin/PostEditor'
 
 export default async function NewPostPage() {
   const session = await getSession()
-  if (!session) redirect('/admin/login')
+  if (!session || !isAdmin(session)) redirect('/admin/login')
 
   return (
     <div className="min-h-screen bg-[hsl(var(--background))]">

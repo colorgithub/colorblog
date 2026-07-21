@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { getSession } from '@/lib/auth'
+import { getSession, isAdmin } from '@/lib/auth'
 import { AdminSidebar } from '@/components/admin/Sidebar'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
@@ -8,7 +8,7 @@ import { FileText, Eye, Clock } from 'lucide-react'
 
 export default async function AdminDashboard() {
   const session = await getSession()
-  if (!session) redirect('/admin/login')
+  if (!session || !isAdmin(session)) redirect('/admin/login')
 
   const totalPosts = await prisma.post.count()
   const publishedPosts = await prisma.post.count({ where: { published: true } })

@@ -1,12 +1,12 @@
 import { prisma } from '@/lib/prisma'
-import { getSession } from '@/lib/auth'
+import { getSession, isAdmin } from '@/lib/auth'
 import { AdminSidebar } from '@/components/admin/Sidebar'
 import { redirect, notFound } from 'next/navigation'
 import { PostEditor } from '@/components/admin/PostEditor'
 
 export default async function EditPostPage({ params }: { params: { id: string } }) {
   const session = await getSession()
-  if (!session) redirect('/admin/login')
+  if (!session || !isAdmin(session)) redirect('/admin/login')
 
   const post = await prisma.post.findUnique({ where: { id: params.id } })
   if (!post) notFound()

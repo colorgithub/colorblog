@@ -8,6 +8,8 @@ const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-change-me'
 export interface JWTPayload {
   userId: string
   username: string
+  name: string
+  role: string
 }
 
 export async function hashPassword(password: string): Promise<string> {
@@ -42,5 +44,21 @@ export async function authenticateUser(username: string, password: string): Prom
   if (!user) return null
   const valid = await verifyPassword(password, user.password)
   if (!valid) return null
-  return signToken({ userId: user.id, username: user.username })
+  return signToken({ userId: user.id, username: user.username, name: user.name, role: user.role })
+}
+
+export function isAdmin(session: JWTPayload | null): boolean {
+  return session?.role === 'ADMIN'
+}
+
+export async function registerUser(username: string, password: string, name: string): Promise<string | null> {
+  const existing = await prisma.user.findUnique({ where: { username } })
+  if (existing) return null
+
+  const hashed = await hashPassword(password)
+  const user = await prisma.user.create({
+    data: { username, password: hashed, name, role: 'USER' },
+  })
+
+  return signToken({ userId: user.id, username: user.username, name: user.name, role: user.role })
 }
