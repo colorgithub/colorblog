@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState, FormEvent, useCallback } from 'react'
-import { MessageSquare, Send, User, Trash2 } from 'lucide-react'
+import { useEffect, useState, FormEvent, useCallback, useRef } from 'react'
+import { MessageSquare, Send, User, Trash2, ImageIcon } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 
 interface CommentUser {
@@ -17,12 +17,39 @@ interface Comment {
   user: CommentUser
 }
 
+function renderCommentContent(text: string) {
+  const parts: React.ReactNode[] = []
+  let lastIndex = 0
+  const imgRe = /!\[([^\]]*)\]\(([^)]+)\)/g
+  let match: RegExpExecArray | null
+
+  while ((match = imgRe.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(<span key={lastIndex} className="whitespace-pre-wrap">{text.slice(lastIndex, match.index)}</span>)
+    }
+    parts.push(
+      <img key={match.index} src={match[2]} alt={match[1]}
+        className="max-w-full max-h-64 rounded-xl my-2 object-contain border"
+        loading="lazy" />
+    )
+    lastIndex = match.index + match[0].length
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(<span key={lastIndex} className="whitespace-pre-wrap">{text.slice(lastIndex)}</span>)
+  }
+
+  return parts.length > 0 ? parts : <span className="whitespace-pre-wrap">{text}</span>
+}
+
 export function CommentsSection({ slug }: { slug: string }) {
   const [comments, setComments] = useState<Comment[]>([])
   const [content, setContent] = useState('')
   const [session, setSession] = useState<{ userId: string; name: string; username: string; role: string } | null>(null)
-  const [loading, setLoading] = useState(false)
   const [sending, setSending] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const textRef = useRef<HTMLTextAreaElement>(null)
 
   const fetchComments = useCallback(() => {
     fetch(`/api/posts/${slug}/comments`)
@@ -37,6 +64,42 @@ export function CommentsSection({ slug }: { slug: string }) {
       .then((r) => r.json().then((d) => { if (d.authenticated) setSession(d.user) }))
       .catch(() => {})
   }, [fetchComments])
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) { alert('请选择图片文件'); return }
+    if (file.size > 5 * 1024 * 1024) { alert('图片不能超过 5MB'); return }
+
+    setUploading(true)
+    const reader = new FileReader()
+    reader.onload = () => {
+      const dataUrl = reader.result as string
+      const alt = file.name.replace(/\.[^.]+$/, '')
+      const imgMd = `![${alt}](${dataUrl})`
+
+      const ta = textRef.current
+      if (ta) {
+        const start = ta.selectionStart
+        const end = ta.selectionEnd
+        const before = content.slice(0, start)
+        const after = content.slice(end)
+        const newText = before + imgMd + after
+        setContent(newText)
+        requestAnimationFrame(() => {
+          ta.selectionStart = ta.selectionEnd = start + imgMd.length
+          ta.focus()
+        })
+      } else {
+        setContent((prev) => prev + (prev ? '\n' : '') + imgMd)
+      }
+
+      setUploading(false)
+    }
+    reader.onerror = () => { alert('图片读取失败'); setUploading(false) }
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -84,16 +147,27 @@ export function CommentsSection({ slug }: { slug: string }) {
             <User size={14} /> <span className="font-medium text-[hsl(var(--foreground))]">{session.name || session.username}</span>
             <span className="text-xs">发表评论</span>
           </div>
-          <textarea value={content} onChange={(e) => setContent(e.target.value)}
-            rows={3}
-            className="w-full px-4 py-3 rounded-xl border bg-[hsl(var(--background))] text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--accent))] transition-all resize-none"
-            placeholder="写下你的想法..." required />
-          <div className="flex justify-end mt-2">
-            <button type="submit" disabled={sending || !content.trim()}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[hsl(var(--accent))] text-white text-sm font-medium hover:brightness-110 disabled:opacity-50 transition-all">
-              <Send size={14} />{sending ? '发送中...' : '发送'}
-            </button>
+
+          <div className="relative">
+            <textarea ref={textRef} value={content} onChange={(e) => setContent(e.target.value)}
+              rows={3}
+              className="w-full px-4 py-3 pr-12 rounded-xl border bg-[hsl(var(--background))] text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--accent))] transition-all resize-none"
+              placeholder="写下你的想法... 支持 Markdown 和图片" required />
+            <div className="absolute right-2 bottom-2 flex items-center gap-1">
+              <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
+                className="p-1.5 rounded-lg hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-all disabled:opacity-50"
+                title="上传图片">
+                <ImageIcon size={18} />
+              </button>
+              <input ref={fileRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+              <button type="submit" disabled={sending || !content.trim()}
+                className="p-1.5 rounded-lg text-[hsl(var(--accent))] hover:bg-[hsl(var(--accent))/10] transition-all disabled:opacity-50"
+                title="发送">
+                <Send size={18} />
+              </button>
+            </div>
           </div>
+          {uploading && <p className="text-xs text-[hsl(var(--muted-foreground))] mt-1">正在处理图片...</p>}
         </form>
       ) : (
         <div className="mb-8 p-4 rounded-xl bg-[hsl(var(--muted))/50] text-center text-sm text-[hsl(var(--muted-foreground))]">
@@ -123,7 +197,7 @@ export function CommentsSection({ slug }: { slug: string }) {
                   </button>
                 )}
               </div>
-              <p className="text-sm leading-relaxed whitespace-pre-wrap">{comment.content}</p>
+              <div className="text-sm leading-relaxed">{renderCommentContent(comment.content)}</div>
             </div>
           ))
         )}
