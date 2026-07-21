@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState, FormEvent } from 'react'
-import { MessageSquare, Send, User } from 'lucide-react'
+import { useEffect, useState, FormEvent, useCallback } from 'react'
+import { MessageSquare, Send, User, Trash2 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 
 interface CommentUser {
@@ -13,26 +13,30 @@ interface Comment {
   id: string
   content: string
   createdAt: string
+  userId: string
   user: CommentUser
 }
 
 export function CommentsSection({ slug }: { slug: string }) {
   const [comments, setComments] = useState<Comment[]>([])
   const [content, setContent] = useState('')
-  const [session, setSession] = useState<{ name: string; username: string } | null>(null)
+  const [session, setSession] = useState<{ userId: string; name: string; username: string; role: string } | null>(null)
   const [loading, setLoading] = useState(false)
   const [sending, setSending] = useState(false)
 
-  useEffect(() => {
+  const fetchComments = useCallback(() => {
     fetch(`/api/posts/${slug}/comments`)
       .then((r) => r.json())
       .then(setComments)
       .catch(() => {})
+  }, [slug])
 
+  useEffect(() => {
+    fetchComments()
     fetch('/api/auth/me')
       .then((r) => r.json().then((d) => { if (d.authenticated) setSession(d.user) }))
       .catch(() => {})
-  }, [slug])
+  }, [fetchComments])
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -53,6 +57,21 @@ export function CommentsSection({ slug }: { slug: string }) {
     }
   }
 
+  const handleDelete = async (commentId: string) => {
+    if (!confirm('确定要删除这条评论吗？')) return
+    try {
+      const res = await fetch(`/api/comments/${commentId}`, { method: 'DELETE' })
+      if (!res.ok) return
+      setComments((prev) => prev.filter((c) => c.id !== commentId))
+    } catch {}
+  }
+
+  const canDelete = (comment: Comment) => {
+    if (!session) return false
+    if (session.role === 'ADMIN') return true
+    return comment.userId === session.userId
+  }
+
   return (
     <div className="border-t pt-10 mt-10">
       <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
@@ -62,7 +81,7 @@ export function CommentsSection({ slug }: { slug: string }) {
       {session ? (
         <form onSubmit={handleSubmit} className="mb-8">
           <div className="flex items-center gap-2 text-sm text-[hsl(var(--muted-foreground))] mb-3">
-            <User size={14} /> <span className="font-medium text-[hsl(var(--foreground))]">{session.name}</span>
+            <User size={14} /> <span className="font-medium text-[hsl(var(--foreground))]">{session.name || session.username}</span>
             <span className="text-xs">发表评论</span>
           </div>
           <textarea value={content} onChange={(e) => setContent(e.target.value)}
@@ -88,12 +107,21 @@ export function CommentsSection({ slug }: { slug: string }) {
         ) : (
           comments.map((comment) => (
             <div key={comment.id} className="p-4 rounded-xl border bg-[hsl(var(--card))]">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-7 h-7 rounded-full bg-[hsl(var(--accent))/10] flex items-center justify-center">
-                  <User size={14} className="text-[hsl(var(--accent))]" />
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-full bg-[hsl(var(--accent))/10] flex items-center justify-center">
+                    <User size={14} className="text-[hsl(var(--accent))]" />
+                  </div>
+                  <span className="text-sm font-medium">{comment.user.name || comment.user.username}</span>
+                  <span className="text-xs text-[hsl(var(--muted-foreground))]">{formatDate(comment.createdAt)}</span>
                 </div>
-                <span className="text-sm font-medium">{comment.user.name}</span>
-                <span className="text-xs text-[hsl(var(--muted-foreground))]">{formatDate(comment.createdAt)}</span>
+                {canDelete(comment) && (
+                  <button onClick={() => handleDelete(comment.id)}
+                    className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/50 text-[hsl(var(--muted-foreground))] hover:text-red-600 transition-all"
+                    title="删除评论">
+                    <Trash2 size={14} />
+                  </button>
+                )}
               </div>
               <p className="text-sm leading-relaxed whitespace-pre-wrap">{comment.content}</p>
             </div>
