@@ -1,12 +1,11 @@
 'use client'
 
 import { Suspense, useState, FormEvent } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { LogIn, Eye, EyeOff } from 'lucide-react'
 
 function LoginForm() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -28,8 +27,7 @@ function LoginForm() {
       const data = await res.json()
       if (!res.ok) { setError(data.error || '登录失败'); return }
       const from = searchParams.get('from') || '/'
-      router.push(from)
-      router.refresh()
+      window.location.href = from
     } catch {
       setError('网络错误，请重试')
     } finally {

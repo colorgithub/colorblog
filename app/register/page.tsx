@@ -1,12 +1,10 @@
 'use client'
 
 import { useState, FormEvent } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { UserPlus, Eye, EyeOff } from 'lucide-react'
 
 export default function RegisterPage() {
-  const router = useRouter()
   const [form, setForm] = useState({ username: '', password: '', name: '' })
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
@@ -25,8 +23,7 @@ export default function RegisterPage() {
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error || '注册失败'); return }
-      router.push('/')
-      router.refresh()
+      window.location.href = '/'
     } catch {
       setError('网络错误，请重试')
     } finally {

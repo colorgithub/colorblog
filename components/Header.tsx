@@ -1,11 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Menu, X, Moon, Sun, User, LogOut, LayoutDashboard } from 'lucide-react'
 import { useTheme } from './ThemeProvider'
 import { cn } from '@/lib/utils'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 
 const navLinks = [
   { href: '/', label: '首页' },
@@ -14,16 +14,19 @@ const navLinks = [
 
 export function Header() {
   const router = useRouter()
+  const pathname = usePathname()
   const [scrolled, setScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [session, setSession] = useState<{ name: string; username: string; role: string } | null>(null)
   const { theme, toggleTheme } = useTheme()
 
-  useEffect(() => {
+  const checkSession = useCallback(() => {
     fetch('/api/auth/me')
-      .then((r) => r.json().then((d) => { if (d.authenticated) setSession(d.user) }))
-      .catch(() => {})
+      .then((r) => r.json().then((d) => { if (d.authenticated) setSession(d.user); else setSession(null) }))
+      .catch(() => setSession(null))
   }, [])
+
+  useEffect(() => { checkSession() }, [checkSession, pathname])
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10)
