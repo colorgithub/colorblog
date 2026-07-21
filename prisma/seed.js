@@ -15,7 +15,16 @@ async function main() {
     })
     console.log(`Admin user "${username}" created.`)
   } else {
-    console.log(`Admin user "${username}" already exists.`)
+    // Ensure existing admin has correct role and name
+    if (existing.role !== 'ADMIN' || existing.name !== '管理员') {
+      await prisma.user.update({
+        where: { username },
+        data: { role: 'ADMIN', name: '管理员' },
+      })
+      console.log(`Admin user "${username}" updated with ADMIN role.`)
+    } else {
+      console.log(`Admin user "${username}" already exists with correct role.`)
+    }
   }
 
   const postCount = await prisma.post.count()

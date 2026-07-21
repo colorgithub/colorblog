@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { Menu, X, Moon, Sun, User, LogOut, LayoutDashboard } from 'lucide-react'
 import { useTheme } from './ThemeProvider'
 import { cn } from '@/lib/utils'
-import { useRouter, usePathname } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 
 const navLinks = [
   { href: '/', label: '首页' },
@@ -13,7 +13,6 @@ const navLinks = [
 ]
 
 export function Header() {
-  const router = useRouter()
   const pathname = usePathname()
   const [scrolled, setScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -36,8 +35,7 @@ export function Header() {
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' })
-    setSession(null)
-    router.refresh()
+    window.location.href = '/'
   }
 
   return (
@@ -68,7 +66,7 @@ export function Header() {
                     <LayoutDashboard size={18} />
                   </Link>
                 )}
-                <span className="text-sm text-[hsl(var(--muted-foreground))]">{session.name}</span>
+                <span className="text-sm text-[hsl(var(--muted-foreground))]">{session.name || session.username}</span>
                 <button onClick={handleLogout}
                   className="p-2 rounded-lg hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--destructive))] transition-colors"
                   title="退出">
@@ -119,7 +117,7 @@ export function Header() {
             {session ? (
               <>
                 <div className="py-2 text-sm text-[hsl(var(--muted-foreground))] flex items-center gap-2">
-                  <User size={16} />{session.name}
+                  <User size={16} />{session.name || session.username}
                 </div>
                 {session.role === 'ADMIN' && (
                   <Link href="/admin" onClick={() => setMobileOpen(false)}
