@@ -5,6 +5,7 @@ import { MessageSquare, Send, User, Trash2, ImageIcon } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
+import rehypeRaw from 'rehype-raw'
 import { formatDate } from '@/lib/utils'
 import { FileUploader } from '@/components/FileUploader'
 
@@ -181,7 +182,7 @@ export function CommentsSection({ slug }: { slug: string }) {
                 )}
               </div>
               <div className="text-sm leading-relaxed prose prose-sm dark:prose-invert max-w-none">
-                <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{comment.content}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} rehypePlugins={[rehypeRaw]}>{comment.content}</ReactMarkdown>
               </div>
             </div>
           ))
