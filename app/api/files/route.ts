@@ -15,8 +15,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '请选择文件' }, { status: 400 })
     }
 
-    if (file.size > 10 * 1024 * 1024) {
-      return NextResponse.json({ error: '文件不能超过 10MB' }, { status: 400 })
+    if (file.size > 4 * 1024 * 1024) {
+      return NextResponse.json({ error: '文件不能超过 4MB（Vercel 免费版限制）' }, { status: 400 })
     }
 
     const buffer = Buffer.from(await file.arrayBuffer())

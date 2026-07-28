@@ -15,7 +15,7 @@ export function FileUploader({ onInsert }: { onInsert: (result: UploadResult) =>
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    if (file.size > 10 * 1024 * 1024) { alert('文件不能超过 10MB'); return }
+    if (file.size > 4 * 1024 * 1024) { alert('文件不能超过 4MB'); return }
 
     setUploading(true)
     try {
