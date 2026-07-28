@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, FormEvent } from 'react'
+import { useState, FormEvent, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Save, Eye, EyeOff } from 'lucide-react'
+import { Save, Eye, EyeOff, ImageIcon } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 interface PostData {
@@ -19,6 +19,8 @@ export function PostEditor({ initialData, isEditing }: {
   isEditing?: boolean
 }) {
   const router = useRouter()
+  const fileRef = useRef<HTMLInputElement>(null)
+  const textRef = useRef<HTMLTextAreaElement>(null)
   const [form, setForm] = useState<PostData>({
     title: initialData?.title || '',
     slug: initialData?.slug || '',
@@ -29,9 +31,43 @@ export function PostEditor({ initialData, isEditing }: {
   })
   const [loading, setLoading] = useState(false)
   const [preview, setPreview] = useState(false)
+  const [uploading, setUploading] = useState(false)
 
   const generateSlug = (title: string) =>
     title.toLowerCase().replace(/[^\w\u4e00-\u9fa5]+/g, '-').replace(/^-+|-+$/g, '') || 'untitled'
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) { toast.error('请选择图片文件'); return }
+    if (file.size > 5 * 1024 * 1024) { toast.error('图片不能超过 5MB'); return }
+
+    setUploading(true)
+    const reader = new FileReader()
+    reader.onload = () => {
+      const dataUrl = reader.result as string
+      const alt = file.name.replace(/\.[^.]+$/, '')
+      const imgMd = `![${alt}](${dataUrl})`
+
+      const ta = textRef.current
+      if (ta) {
+        const start = ta.selectionStart
+        const end = ta.selectionEnd
+        const before = form.content.slice(0, start)
+        const after = form.content.slice(end)
+        const newContent = before + imgMd + after
+        setForm((p) => ({ ...p, content: newContent }))
+        requestAnimationFrame(() => {
+          ta.selectionStart = ta.selectionEnd = start + imgMd.length
+          ta.focus()
+        })
+      }
+      setUploading(false)
+    }
+    reader.onerror = () => { toast.error('图片读取失败'); setUploading(false) }
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -98,11 +134,21 @@ export function PostEditor({ initialData, isEditing }: {
                 <div dangerouslySetInnerHTML={{ __html: simpleMarkdown(form.content) }} />
               </div>
             ) : (
-              <textarea value={form.content}
-                onChange={(e) => setForm(p => ({ ...p, content: e.target.value }))}
-                rows={16}
-                className="w-full px-4 py-3 rounded-xl border bg-[hsl(var(--background))] text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[hsl(var(--accent))] transition-all resize-y"
-                placeholder="使用 Markdown 编写文章内容..." />
+              <div className="relative">
+                <textarea ref={textRef} value={form.content}
+                  onChange={(e) => setForm(p => ({ ...p, content: e.target.value }))}
+                  rows={16}
+                  className="w-full px-4 py-3 pb-12 rounded-xl border bg-[hsl(var(--background))] text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[hsl(var(--accent))] transition-all resize-y"
+                  placeholder="使用 Markdown 编写文章内容..." />
+                <div className="absolute left-2 bottom-2 flex items-center gap-1">
+                  <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[hsl(var(--muted))] text-xs font-medium hover:bg-[hsl(var(--muted-foreground))/20] transition-all disabled:opacity-50"
+                    title="上传图片">
+                    <ImageIcon size={14} />{uploading ? '处理中...' : '插入图片'}
+                  </button>
+                  <input ref={fileRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                </div>
+              </div>
             )}
           </div>
         </div>
@@ -163,11 +209,13 @@ function simpleMarkdown(md: string): string {
     else if (line.startsWith('> ')) html += `<blockquote>${line.slice(2)}</blockquote>`
     else if (line.trim() === '') html += '<br/>'
     else {
-      let p = line.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+      html += '<p>' + line
+        .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
         .replace(/\*(.+?)\*/g, '<em>$1</em>')
         .replace(/`(.+?)`/g, '<code>$1</code>')
-      html += `<p>${p}</p>`
+        .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" class="max-w-full rounded-xl my-2" />')
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>') + '</p>'
     }
   }
   if (inCode) html += '</code></pre>'
