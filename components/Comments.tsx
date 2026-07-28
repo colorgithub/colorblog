@@ -3,6 +3,7 @@
 import { useEffect, useState, FormEvent, useCallback, useRef } from 'react'
 import { MessageSquare, Send, User, Trash2, ImageIcon } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
+import { FileUploader } from '@/components/FileUploader'
 
 interface CommentUser {
   name: string
@@ -160,6 +161,10 @@ export function CommentsSection({ slug }: { slug: string }) {
                 <ImageIcon size={18} />
               </button>
               <input ref={fileRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+              <FileUploader onInsert={({ url, name }) => {
+                const md = `[${name}](${url})`
+                setContent((prev) => prev + (prev ? '\n' : '') + md)
+              }} />
               <button type="submit" disabled={sending || !content.trim()}
                 className="p-1.5 rounded-lg text-[hsl(var(--accent))] hover:bg-[hsl(var(--accent))/10] transition-all disabled:opacity-50"
                 title="发送">

@@ -2,8 +2,9 @@
 
 import { useState, FormEvent, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Save, Eye, EyeOff, ImageIcon } from 'lucide-react'
+import { Save, Eye, EyeOff, ImageIcon, Paperclip } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { FileUploader } from '@/components/FileUploader'
 
 interface PostData {
   title: string
@@ -32,6 +33,7 @@ export function PostEditor({ initialData, isEditing }: {
   const [loading, setLoading] = useState(false)
   const [preview, setPreview] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [fileUploading, setFileUploading] = useState(false)
 
   const generateSlug = (title: string) =>
     title.toLowerCase().replace(/[^\w\u4e00-\u9fa5]+/g, '-').replace(/^-+|-+$/g, '') || 'untitled'
@@ -67,6 +69,21 @@ export function PostEditor({ initialData, isEditing }: {
     reader.onerror = () => { toast.error('图片读取失败'); setUploading(false) }
     reader.readAsDataURL(file)
     e.target.value = ''
+  }
+
+  const handleFileInsert = (result: { url: string; name: string }) => {
+    const ta = textRef.current
+    if (!ta) return
+    const linkMd = `[${result.name}](${result.url})`
+    const start = ta.selectionStart
+    const end = ta.selectionEnd
+    const before = form.content.slice(0, start)
+    const after = form.content.slice(end)
+    setForm((p) => ({ ...p, content: before + linkMd + after }))
+    requestAnimationFrame(() => {
+      ta.selectionStart = ta.selectionEnd = start + linkMd.length
+      ta.focus()
+    })
   }
 
   const handleSubmit = async (e: FormEvent) => {
@@ -144,9 +161,10 @@ export function PostEditor({ initialData, isEditing }: {
                   <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[hsl(var(--muted))] text-xs font-medium hover:bg-[hsl(var(--muted-foreground))/20] transition-all disabled:opacity-50"
                     title="上传图片">
-                    <ImageIcon size={14} />{uploading ? '处理中...' : '插入图片'}
+                    <ImageIcon size={14} />{uploading ? '处理中...' : '图片'}
                   </button>
                   <input ref={fileRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                  <FileUploader onInsert={handleFileInsert} />
                 </div>
               </div>
             )}
