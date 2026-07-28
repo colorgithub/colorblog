@@ -2,6 +2,9 @@
 
 import { useEffect, useState, FormEvent, useCallback, useRef } from 'react'
 import { MessageSquare, Send, User, Trash2, ImageIcon } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import remarkBreaks from 'remark-breaks'
 import { formatDate } from '@/lib/utils'
 import { FileUploader } from '@/components/FileUploader'
 
@@ -16,41 +19,6 @@ interface Comment {
   createdAt: string
   userId: string
   user: CommentUser
-}
-
-function renderCommentContent(text: string) {
-  const parts: React.ReactNode[] = []
-  let lastIndex = 0
-  const tokenRe = /(!\[([^\]]*)\]\(([^)]+)\)|\[([^\]]*)\]\(([^)]+)\))/g
-  let match: RegExpExecArray | null
-
-  while ((match = tokenRe.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(<span key={lastIndex} className="whitespace-pre-wrap">{text.slice(lastIndex, match.index)}</span>)
-    }
-
-    if (match[1].startsWith('!')) {
-      parts.push(
-        <img key={match.index} src={match[3]} alt={match[2]}
-          className="max-w-full max-h-64 rounded-xl my-2 object-contain border"
-          loading="lazy" />
-      )
-    } else {
-      parts.push(
-        <a key={match.index} href={match[5]} target="_blank" rel="noopener noreferrer"
-          className="text-[hsl(var(--accent))] hover:underline break-all">
-          {match[4]}
-        </a>
-      )
-    }
-    lastIndex = match.index + match[0].length
-  }
-
-  if (lastIndex < text.length) {
-    parts.push(<span key={lastIndex} className="whitespace-pre-wrap">{text.slice(lastIndex)}</span>)
-  }
-
-  return parts.length > 0 ? parts : <span className="whitespace-pre-wrap">{text}</span>
 }
 
 export function CommentsSection({ slug }: { slug: string }) {
@@ -212,7 +180,9 @@ export function CommentsSection({ slug }: { slug: string }) {
                   </button>
                 )}
               </div>
-              <div className="text-sm leading-relaxed">{renderCommentContent(comment.content)}</div>
+              <div className="text-sm leading-relaxed prose prose-sm dark:prose-invert max-w-none">
+                <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{comment.content}</ReactMarkdown>
+              </div>
             </div>
           ))
         )}
