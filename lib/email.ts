@@ -1,6 +1,6 @@
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY || 're_placeholder')
+const resend = new Resend(process.env.RESEND_API_KEY || '')
 const FROM_EMAIL = process.env.EMAIL_FROM || 'My Blog <onboarding@resend.dev>'
 const SITE_URL = process.env.SITE_URL || 'http://localhost:3000'
 
@@ -8,7 +8,7 @@ export async function sendVerificationEmail(to: string, token: string) {
   const verifyUrl = `${SITE_URL}/verify?token=${token}`
 
   try {
-    await resend.emails.send({
+    const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to,
       subject: '验证你的邮箱 - My Blog',
@@ -32,9 +32,16 @@ export async function sendVerificationEmail(to: string, token: string) {
         </div>
       `,
     })
-    return true
+
+    if (error) {
+      console.error('Resend API error:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true, id: data?.id }
   } catch (err) {
     console.error('Failed to send verification email:', err)
-    return false
+    const message = err instanceof Error ? err.message : '未知错误'
+    return { success: false, error: message }
   }
 }

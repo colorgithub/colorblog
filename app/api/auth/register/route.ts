@@ -24,11 +24,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: result.error }, { status: 409 })
     }
 
-    const emailSent = await sendVerificationEmail(email.toLowerCase(), result.token!)
+    const emailResult = await sendVerificationEmail(email.toLowerCase(), result.token!)
 
     return NextResponse.json({
       success: true,
-      emailSent,
+      emailSent: emailResult.success,
+      emailError: emailResult.success ? undefined : emailResult.error,
     })
   } catch (err) {
     console.error('Register error:', err)

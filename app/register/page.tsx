@@ -10,6 +10,7 @@ export default function RegisterPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [registered, setRegistered] = useState(false)
+  const [emailError, setEmailError] = useState('')
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -24,6 +25,7 @@ export default function RegisterPage() {
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error || '注册失败'); return }
+      setEmailError(data.emailError || '')
       setRegistered(true)
     } catch {
       setError('网络错误，请重试')
@@ -44,6 +46,11 @@ export default function RegisterPage() {
             验证邮件已发送到 <span className="font-medium text-[hsl(var(--foreground))]">{form.email}</span>，
             请查收邮箱并点击验证链接完成注册。
           </p>
+          {emailError && (
+            <div className="p-3 mb-4 text-sm text-amber-700 bg-amber-50 dark:bg-amber-950/50 dark:text-amber-400 rounded-xl text-left">
+              邮件发送遇到问题：{emailError}
+            </div>
+          )}
           <p className="text-sm text-[hsl(var(--muted-foreground))]">
             已验证？<Link href="/admin/login" className="text-[hsl(var(--accent))] hover:underline">去登录</Link>
           </p>
