@@ -2,13 +2,14 @@
 
 import { useState, FormEvent } from 'react'
 import Link from 'next/link'
-import { UserPlus, Eye, EyeOff } from 'lucide-react'
+import { UserPlus, Eye, EyeOff, MailCheck } from 'lucide-react'
 
 export default function RegisterPage() {
-  const [form, setForm] = useState({ username: '', password: '', name: '' })
+  const [form, setForm] = useState({ username: '', email: '', password: '', name: '' })
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [registered, setRegistered] = useState(false)
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -23,12 +24,32 @@ export default function RegisterPage() {
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error || '注册失败'); return }
-      window.location.href = '/'
+      setRegistered(true)
     } catch {
       setError('网络错误，请重试')
     } finally {
       setLoading(false)
     }
+  }
+
+  if (registered) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center px-4">
+        <div className="text-center max-w-sm">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-emerald-500/10 mb-4">
+            <MailCheck className="w-7 h-7 text-emerald-500" />
+          </div>
+          <h1 className="text-2xl font-bold mb-3">注册成功</h1>
+          <p className="text-[hsl(var(--muted-foreground))] leading-relaxed mb-6">
+            验证邮件已发送到 <span className="font-medium text-[hsl(var(--foreground))]">{form.email}</span>，
+            请查收邮箱并点击验证链接完成注册。
+          </p>
+          <p className="text-sm text-[hsl(var(--muted-foreground))]">
+            已验证？<Link href="/admin/login" className="text-[hsl(var(--accent))] hover:underline">去登录</Link>
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -39,7 +60,7 @@ export default function RegisterPage() {
             <UserPlus className="w-7 h-7 text-[hsl(var(--accent))]" />
           </div>
           <h1 className="text-2xl font-bold">注册账号</h1>
-          <p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">创建账号后可以发表评论</p>
+          <p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">注册后需验证邮箱才能发表评论</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -52,6 +73,13 @@ export default function RegisterPage() {
             <input type="text" value={form.username} onChange={(e) => setForm(p => ({ ...p, username: e.target.value }))}
               className="w-full px-4 py-2.5 rounded-xl border bg-[hsl(var(--background))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--accent))] transition-all"
               placeholder="至少3个字符" required minLength={3} />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1.5">邮箱</label>
+            <input type="email" value={form.email} onChange={(e) => setForm(p => ({ ...p, email: e.target.value }))}
+              className="w-full px-4 py-2.5 rounded-xl border bg-[hsl(var(--background))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--accent))] transition-all"
+              placeholder="用于接收验证邮件" required />
           </div>
 
           <div>

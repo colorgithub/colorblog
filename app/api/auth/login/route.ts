@@ -9,13 +9,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '请输入用户名和密码' }, { status: 400 })
     }
 
-    const token = await authenticateUser(username, password)
-    if (!token) {
-      return NextResponse.json({ error: '用户名或密码错误' }, { status: 401 })
+    const result = await authenticateUser(username, password)
+    if (result.error) {
+      return NextResponse.json({ error: result.error, emailVerified: result.emailVerified }, { status: 401 })
     }
 
     const response = NextResponse.json({ success: true })
-    response.cookies.set('auth_token', token, {
+    response.cookies.set('auth_token', result.token!, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',

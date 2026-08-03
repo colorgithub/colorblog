@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
+import crypto from 'crypto'
 import { cookies } from 'next/headers'
 import { prisma } from './prisma'
 
@@ -39,26 +40,73 @@ export async function getSession(): Promise<JWTPayload | null> {
   return verifyToken(token)
 }
 
-export async function authenticateUser(username: string, password: string): Promise<string | null> {
-  const user = await prisma.user.findUnique({ where: { username } })
-  if (!user) return null
+export interface AuthResult {
+  error?: string
+  token?: string
+  emailVerified?: boolean
+}
+
+export async function authenticateUser(usernameOrEmail: string, password: string): Promise<AuthResult> {
+  const user = await prisma.user.findFirst({
+    where: { OR: [{ username: usernameOrEmail }, { email: usernameOrEmail }] },
+  })
+  if (!user) return { error: '用户名或密码错误' }
+
   const valid = await verifyPassword(password, user.password)
-  if (!valid) return null
-  return signToken({ userId: user.id, username: user.username, name: user.name, role: user.role })
+  if (!valid) return { error: '用户名或密码错误' }
+
+  if (!user.emailVerified) return { error: '邮箱尚未验证，请先查收邮件完成验证', emailVerified: false }
+
+  return {
+    token: signToken({ userId: user.id, username: user.username, name: user.name, role: user.role }),
+    emailVerified: true,
+  }
 }
 
 export function isAdmin(session: JWTPayload | null): boolean {
   return session?.role === 'ADMIN'
 }
 
-export async function registerUser(username: string, password: string, name: string): Promise<string | null> {
-  const existing = await prisma.user.findUnique({ where: { username } })
-  if (existing) return null
+export async function registerUser(
+  username: string,
+  email: string,
+  password: string,
+  name: string
+): Promise<{ error?: string; token?: string }> {
+  const existingUsername = await prisma.user.findUnique({ where: { username } })
+  if (existingUsername) return { error: '用户名已存在' }
+
+  const existingEmail = await prisma.user.findUnique({ where: { email } })
+  if (existingEmail) return { error: '邮箱已被注册' }
 
   const hashed = await hashPassword(password)
+  const verificationToken = crypto.randomBytes(32).toString('hex')
+
   const user = await prisma.user.create({
-    data: { username, password: hashed, name, role: 'USER' },
+    data: {
+      username,
+      email,
+      password: hashed,
+      name,
+      role: 'USER',
+      emailVerified: false,
+      verificationToken,
+    },
   })
 
-  return signToken({ userId: user.id, username: user.username, name: user.name, role: user.role })
+  return {
+    token: verificationToken,
+  }
+}
+
+export async function verifyEmailToken(token: string): Promise<boolean> {
+  const user = await prisma.user.findFirst({ where: { verificationToken: token } })
+  if (!user) return false
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { emailVerified: true, verificationToken: '' },
+  })
+
+  return true
 }
