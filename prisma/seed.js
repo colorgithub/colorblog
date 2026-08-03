@@ -23,12 +23,12 @@ async function main() {
     })
     console.log(`Admin user "${username}" created.`)
   } else {
-    if (existing.role !== 'ADMIN' || existing.name !== '管理员') {
+    if (existing.role !== 'ADMIN' || existing.name !== '管理员' || existing.emailVerified !== true || !existing.email) {
       await prisma.user.update({
         where: { username },
-        data: { role: 'ADMIN', name: '管理员' },
+        data: { role: 'ADMIN', name: '管理员', emailVerified: true, email: existing.email || email },
       })
-      console.log(`Admin user "${username}" updated with ADMIN role.`)
+      console.log(`Admin user "${username}" updated with ADMIN role and verified email.`)
     } else {
       console.log(`Admin user "${username}" already exists with correct role.`)
     }
