@@ -44,6 +44,9 @@ export interface AuthResult {
   error?: string
   token?: string
   emailVerified?: boolean
+  needsEmail?: boolean
+  userId?: string
+  username?: string
 }
 
 export async function authenticateUser(usernameOrEmail: string, password: string): Promise<AuthResult> {
@@ -54,6 +57,16 @@ export async function authenticateUser(usernameOrEmail: string, password: string
 
   const valid = await verifyPassword(password, user.password)
   if (!valid) return { error: '用户名或密码错误' }
+
+  if (!user.email) {
+    return {
+      error: '该账号尚未绑定邮箱，请先完成邮箱验证',
+      needsEmail: true,
+      userId: user.id,
+      username: user.username,
+      emailVerified: false,
+    }
+  }
 
   if (!user.emailVerified) return { error: '邮箱尚未验证，请先查收邮件完成验证', emailVerified: false }
 
@@ -97,6 +110,36 @@ export async function registerUser(
   return {
     token: verificationToken,
   }
+}
+
+export async function bindEmailToUser(
+  username: string,
+  password: string,
+  email: string
+): Promise<{ error?: string; token?: string }> {
+  const user = await prisma.user.findUnique({ where: { username } })
+  if (!user) return { error: '用户名或密码错误' }
+
+  const valid = await verifyPassword(password, user.password)
+  if (!valid) return { error: '用户名或密码错误' }
+
+  if (user.email) return { error: '该账号已绑定邮箱，请直接登录' }
+
+  const existingEmail = await prisma.user.findUnique({ where: { email } })
+  if (existingEmail) return { error: '该邮箱已被其他账号使用' }
+
+  const verificationToken = crypto.randomBytes(32).toString('hex')
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      email,
+      emailVerified: false,
+      verificationToken,
+    },
+  })
+
+  return { token: verificationToken }
 }
 
 export async function verifyEmailToken(token: string): Promise<boolean> {

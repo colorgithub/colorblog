@@ -11,7 +11,10 @@ export async function POST(request: Request) {
 
     const result = await authenticateUser(username, password)
     if (result.error) {
-      return NextResponse.json({ error: result.error, emailVerified: result.emailVerified }, { status: 401 })
+      return NextResponse.json(
+        { error: result.error, emailVerified: result.emailVerified, needsEmail: result.needsEmail },
+        { status: 401 }
+      )
     }
 
     const response = NextResponse.json({ success: true })
