@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { LayoutDashboard, FileText, Plus, LogOut, ChevronLeft, ChevronRight } from 'lucide-react'
+import { LayoutDashboard, FileText, Plus, Users, LogOut, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useState } from 'react'
 
@@ -10,6 +10,7 @@ const links = [
   { href: '/admin', label: '概览', icon: LayoutDashboard },
   { href: '/admin/posts', label: '文章管理', icon: FileText },
   { href: '/admin/posts/new', label: '写文章', icon: Plus },
+  { href: '/admin/users', label: '用户管理', icon: Users },
 ]
 
 export function AdminSidebar() {
