@@ -8,18 +8,16 @@ datasource db {
 }
 
 model User {
-  id                String    @id @default(cuid())
-  username          String    @unique
-  email             String?   @unique
-  password          String
-  name              String    @default("")
-  role              String    @default("USER")
-  emailVerified     Boolean   @default(false)
-  verificationToken String    @default("")
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  comments          Comment[]
-  files             File[]
+  id        String    @id @default(cuid())
+  username  String    @unique
+  email     String?   @unique
+  password  String
+  name      String    @default("")
+  role      String    @default("USER")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  comments  Comment[]
+  files     File[]
 }
 
 model Post {

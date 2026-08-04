@@ -13,7 +13,6 @@ interface User {
   email: string | null
   name: string
   role: string
-  emailVerified: boolean
   createdAt: string
   commentCount: number
   fileCount: number
@@ -86,9 +85,6 @@ export function UsersClient({ users, currentUserId }: { users: User[]; currentUs
                     <p className="font-medium text-sm truncate">{user.name || user.username}</p>
                     {user.role === 'ADMIN' && (
                       <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-violet-500/10 text-violet-500">管理员</span>
-                    )}
-                    {!user.emailVerified && (
-                      <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-amber-500/10 text-amber-500">未验证</span>
                     )}
                   </div>
                   <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5">

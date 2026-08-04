@@ -16,7 +16,6 @@ export async function GET() {
       email: true,
       name: true,
       role: true,
-      emailVerified: true,
       createdAt: true,
       _count: { select: { comments: true, files: true } },
     },
