@@ -45,18 +45,23 @@ export function CommentsSection({ slug }: { slug: string }) {
       .catch(() => {})
   }, [fetchComments])
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     if (!file.type.startsWith('image/')) { alert('请选择图片文件'); return }
-    if (file.size > 5 * 1024 * 1024) { alert('图片不能超过 5MB'); return }
+    if (file.size > 4 * 1024 * 1024) { alert('图片不能超过 4MB'); return }
 
     setUploading(true)
-    const reader = new FileReader()
-    reader.onload = () => {
-      const dataUrl = reader.result as string
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+
+      const res = await fetch('/api/files', { method: 'POST', body: fd })
+      const data = await res.json()
+      if (!res.ok) { alert(data.error || '上传失败'); return }
+
       const alt = file.name.replace(/\.[^.]+$/, '')
-      const imgMd = `![${alt}](${dataUrl})`
+      const imgMd = `![${alt}](${data.url})`
 
       const ta = textRef.current
       if (ta) {
@@ -73,12 +78,12 @@ export function CommentsSection({ slug }: { slug: string }) {
       } else {
         setContent((prev) => prev + (prev ? '\n' : '') + imgMd)
       }
-
+    } catch {
+      alert('图片上传失败')
+    } finally {
       setUploading(false)
+      e.target.value = ''
     }
-    reader.onerror = () => { alert('图片读取失败'); setUploading(false) }
-    reader.readAsDataURL(file)
-    e.target.value = ''
   }
 
   const handleSubmit = async (e: FormEvent) => {

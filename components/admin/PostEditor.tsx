@@ -38,19 +38,22 @@ export function PostEditor({ initialData, isEditing }: {
   const generateSlug = (title: string) =>
     title.toLowerCase().replace(/[^\w\u4e00-\u9fa5]+/g, '-').replace(/^-+|-+$/g, '') || 'untitled'
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     if (!file.type.startsWith('image/')) { toast.error('请选择图片文件'); return }
-    if (file.size > 5 * 1024 * 1024) { toast.error('图片不能超过 5MB'); return }
+    if (file.size > 4 * 1024 * 1024) { toast.error('图片不能超过 4MB'); return }
 
     setUploading(true)
-    const reader = new FileReader()
-    reader.onload = () => {
-      const dataUrl = reader.result as string
-      const alt = file.name.replace(/\.[^.]+$/, '')
-      const imgMd = `![${alt}](${dataUrl})`
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
 
+      const res = await fetch('/api/files', { method: 'POST', body: fd })
+      const data = await res.json()
+      if (!res.ok) { toast.error(data.error || '上传失败'); return }
+
+      const imgMd = `![${data.name.replace(/\.[^.]+$/, '')}](${data.url})`
       const ta = textRef.current
       if (ta) {
         const start = ta.selectionStart
@@ -64,11 +67,13 @@ export function PostEditor({ initialData, isEditing }: {
           ta.focus()
         })
       }
+      toast.success('图片已上传')
+    } catch {
+      toast.error('图片上传失败')
+    } finally {
       setUploading(false)
+      e.target.value = ''
     }
-    reader.onerror = () => { toast.error('图片读取失败'); setUploading(false) }
-    reader.readAsDataURL(file)
-    e.target.value = ''
   }
 
   const handleFileInsert = (result: { url: string; name: string }) => {
