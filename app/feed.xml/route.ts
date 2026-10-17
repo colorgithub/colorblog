@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
-import { SITE_NAME, SITE_URL } from '@/lib/env'
+import { SITE_NAME } from '@/lib/site'
+import { SITE_URL } from '@/lib/env'
 import { plainExcerpt } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'

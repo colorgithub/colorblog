@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { PenLine, Rss } from 'lucide-react'
-import { SITE_NAME } from '@/lib/env'
+import { SITE_NAME } from '@/lib/site'
 
 export function Footer() {
   const year = new Date().getFullYear()

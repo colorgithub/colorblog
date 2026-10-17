@@ -15,7 +15,7 @@ import {
   ExternalLink,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { SITE_NAME } from '@/lib/env'
+import { SITE_NAME } from '@/lib/site'
 
 const links = [
   { href: '/admin', label: '概览', icon: LayoutDashboard, exact: true },

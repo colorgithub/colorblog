@@ -4,7 +4,8 @@ import { Toaster } from 'react-hot-toast'
 import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
 import { ThemeProvider } from '@/components/ThemeProvider'
-import { SITE_NAME, SITE_URL } from '@/lib/env'
+import { SITE_NAME, SITE_DESCRIPTION } from '@/lib/site'
+import { SITE_URL } from '@/lib/env'
 import './globals.css'
 
 /**
@@ -28,12 +29,12 @@ const mono = JetBrains_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: { default: SITE_NAME, template: `%s · ${SITE_NAME}` },
-  description: '记录技术、生活和思考。用文字沉淀知识，用分享连接世界。',
+  description: SITE_DESCRIPTION,
   openGraph: {
     type: 'website',
     siteName: SITE_NAME,
     title: SITE_NAME,
-    description: '记录技术、生活和思考。',
+    description: SITE_DESCRIPTION,
     url: SITE_URL,
   },
   robots: { index: true, follow: true },

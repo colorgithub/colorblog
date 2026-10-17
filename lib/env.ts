@@ -1,9 +1,15 @@
 /**
- * 环境变量的唯一入口。
+ * 服务端环境变量的唯一入口。
  *
- * 这里刻意采用「模块加载即校验」的策略：配置缺失时构建/启动直接失败，
- * 而不是悄悄退化成一个公开在源码里的兜底值。
+ * ⚠️ 本文件**只能被服务端代码导入**（Server Component、Route Handler、
+ * middleware）。它含有「模块加载即校验」的顶层代码，一旦被打进浏览器
+ * bundle，process.env.JWT_SECRET 在浏览器里是 undefined，会立刻抛错并让
+ * 整个页面崩溃（表现为 "Application error: a client-side exception"）。
+ *
+ * 客户端需要用的常量请放到 lib/site.ts。
+ * 首行的 server-only 导入会让这种误用变成构建错误，而不是线上崩溃。
  */
+import 'server-only'
 
 function required(name: string, minLength = 1): string {
   const value = process.env[name]
@@ -43,9 +49,6 @@ function resolveSiteUrl(): string {
 }
 
 export const SITE_URL = resolveSiteUrl()
-
-/** 站点名称，用于 metadata 与页脚。 */
-export const SITE_NAME = process.env.SITE_NAME || 'My Blog'
 
 /** 是否开放注册。个人博客建议设为 false，改由管理员在后台建号。 */
 export const ALLOW_REGISTRATION = process.env.ALLOW_REGISTRATION !== 'false'

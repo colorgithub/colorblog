@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { ArrowRight, Sparkles } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
-import { SITE_NAME } from '@/lib/env'
+import { SITE_NAME } from '@/lib/site'
 import { PostCard, EmptyPosts, type PostCardData } from '@/components/PostCard'
 
 // 首页走 ISR：60 秒重新验证一次，不必每个请求都查库

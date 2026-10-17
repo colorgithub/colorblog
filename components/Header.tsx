@@ -15,7 +15,7 @@ import {
 } from 'lucide-react'
 import { useTheme } from './ThemeProvider'
 import { cn } from '@/lib/utils'
-import { SITE_NAME } from '@/lib/env'
+import { SITE_NAME } from '@/lib/site'
 
 const navLinks = [
   { href: '/', label: '首页' },
