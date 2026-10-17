@@ -49,6 +49,3 @@ function resolveSiteUrl(): string {
 }
 
 export const SITE_URL = resolveSiteUrl()
-
-/** 是否开放注册。个人博客建议设为 false，改由管理员在后台建号。 */
-export const ALLOW_REGISTRATION = process.env.ALLOW_REGISTRATION !== 'false'

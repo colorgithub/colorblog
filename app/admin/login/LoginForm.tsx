@@ -1,131 +1,93 @@
 'use client'
 
-import { useState, type FormEvent } from 'react'
-import { useSearchParams } from 'next/navigation'
-import Link from 'next/link'
-import { LogIn, Eye, EyeOff, Loader2 } from 'lucide-react'
-import toast from 'react-hot-toast'
+import { Loader2, ShieldCheck, AlertCircle } from 'lucide-react'
+import { useState } from 'react'
 
-/**
- * 只接受站内的相对路径，避免 ?from=https://evil.com 这种开放重定向。
- * `//evil.com` 会被浏览器当作协议相对 URL，同样要拦掉。
- */
-function safeRedirect(target: string | null): string {
-  if (!target) return '/'
-  if (!target.startsWith('/')) return '/'
-  if (target.startsWith('//')) return '/'
-  return target
+/** vault 回传的错误码 → 人话 */
+const ERROR_MESSAGES: Record<string, string> = {
+  access_denied: '你取消了授权。',
+  invalid_state: '登录请求已失效，请重新发起。',
+  missing_code: '授权服务器没有返回授权码，请重试。',
+  oauth_failed: '登录失败，请稍后重试。若持续失败请联系站长。',
+  invalid_client: 'OAuth 客户端配置有误，请联系站长。',
+  invalid_scope: '授权范围不被支持，请联系站长。',
+  unsupported_response_type: '授权服务器不支持当前的请求方式。',
+  invalid_request: '授权请求参数不合法，请重新发起登录。',
+  server_error: '授权服务器内部错误，请稍后重试。',
+  temporarily_unavailable: '授权服务器暂时不可用，请稍后重试。',
 }
 
-export function LoginForm() {
-  const searchParams = useSearchParams()
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+interface LoginFormProps {
+  /** 登录成功后要回到的站内路径 */
+  next: string
+  /** 回调失败时带回来的错误码 */
+  errorCode?: string
+  /** vault 的对外地址，用于「去注册」链接；未配置时为 null */
+  issuer: string | null
+}
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
+export function LoginForm({ next, errorCode, issuer }: LoginFormProps) {
+  const [navigating, setNavigating] = useState(false)
+  const message = errorCode
+    ? (ERROR_MESSAGES[errorCode] ?? '登录未完成，请重试。')
+    : null
 
-    try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-      })
-      const data = await res.json().catch(() => ({}))
-
-      if (!res.ok) {
-        setError(data.error || '登录失败')
-        return
-      }
-
-      toast.success('登录成功')
-      window.location.href = safeRedirect(searchParams.get('from'))
-    } catch {
-      setError('网络错误，请重试')
-    } finally {
-      setLoading(false)
-    }
-  }
+  const startUrl = `/api/auth/oauth/start?next=${encodeURIComponent(next)}`
 
   return (
     <div className="w-full max-w-sm">
       <div className="mb-8 text-center">
         <div className="inline-grid h-14 w-14 place-items-center rounded-2xl bg-accent/10 text-accent">
-          <LogIn size={26} />
+          <ShieldCheck size={26} />
         </div>
         <h1 className="mt-5 text-2xl font-bold tracking-tight">登录</h1>
-        <p className="mt-2 text-sm text-muted-foreground">登录后即可评论，管理员可进入后台</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          本站使用 MemoVault 统一账号登录，不再单独保存密码
+        </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {error && (
-          <div
-            role="alert"
-            className="rounded-xl border border-destructive/25 bg-destructive/10 px-3.5 py-2.5 text-sm text-destructive"
-          >
-            {error}
-          </div>
+      {message && (
+        <div
+          role="alert"
+          className="mb-4 flex items-start gap-2 rounded-xl border border-destructive/25 bg-destructive/10 px-3.5 py-2.5 text-sm text-destructive"
+        >
+          <AlertCircle size={15} className="mt-0.5 shrink-0" />
+          <span>{message}</span>
+        </div>
+      )}
+
+      <a
+        href={startUrl}
+        onClick={() => setNavigating(true)}
+        aria-disabled={navigating}
+        className="btn btn-primary btn-md w-full"
+      >
+        {navigating ? (
+          <Loader2 size={16} className="animate-spin" />
+        ) : (
+          <ShieldCheck size={16} />
         )}
+        {navigating ? '正在跳转…' : '使用 MemoVault 登录'}
+      </a>
 
-        <div>
-          <label htmlFor="username" className="label-field">
-            用户名
-          </label>
-          <input
-            id="username"
-            type="text"
-            autoComplete="username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            className="input-field"
-            placeholder="用户名或邮箱"
-            required
-          />
-        </div>
+      <p className="mt-5 text-center text-xs leading-relaxed text-muted-foreground">
+        登录时你会被带到 MemoVault 的授权页，确认后自动返回本站。
+        <br />
+        本站只会获得你的邮箱和昵称，无法访问你的备忘录与验证码。
+      </p>
 
-        <div>
-          <label htmlFor="password" className="label-field">
-            密码
-          </label>
-          <div className="relative">
-            <input
-              id="password"
-              type={showPassword ? 'text' : 'password'}
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="input-field pr-11"
-              placeholder="输入密码"
-              required
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
-              aria-label={showPassword ? '隐藏密码' : '显示密码'}
-            >
-              {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
-            </button>
-          </div>
-        </div>
-
-        <button type="submit" disabled={loading} className="btn btn-primary btn-md w-full">
-          {loading && <Loader2 size={15} className="animate-spin" />}
-          {loading ? '登录中…' : '登录'}
-        </button>
-
-        <p className="pt-1 text-center text-sm text-muted-foreground">
-          没有账号？
-          <Link href="/register" className="ml-1 font-medium text-accent hover:underline">
-            去注册
-          </Link>
+      {issuer && (
+        <p className="mt-4 text-center text-sm text-muted-foreground">
+          还没有账号？
+          <a
+            href={`${issuer}/register`}
+            className="ml-1 font-medium text-accent hover:underline"
+            rel="noreferrer"
+          >
+            去 MemoVault 注册
+          </a>
         </p>
-      </form>
+      )}
     </div>
   )
 }

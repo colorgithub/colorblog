@@ -59,3 +59,20 @@ export function plainExcerpt(markdown: string, length = 160): string {
     .trim()
   return truncate(text, length)
 }
+
+/**
+ * 校验站内回跳路径。
+ *
+ * 只接受以单个 `/` 开头的相对路径：
+ * - `//evil.com` 会被浏览器当成协议相对 URL，必须拒绝
+ * - `/\evil.com` 在部分浏览器里等价于 `//evil.com`
+ * - 绝对 URL（http://、javascript: 等）一律拒绝
+ */
+export function safeReturnPath(raw: string | null | undefined, fallback = '/'): string {
+  if (!raw) return fallback
+  if (!raw.startsWith('/')) return fallback
+  if (raw.startsWith('//')) return fallback
+  if (raw.startsWith('/\\')) return fallback
+  if (/[\u0000-\u001f]/.test(raw)) return fallback
+  return raw
+}

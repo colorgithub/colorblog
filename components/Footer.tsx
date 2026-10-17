@@ -56,11 +56,6 @@ export function Footer() {
                     登录
                   </Link>
                 </li>
-                <li>
-                  <Link href="/register" className="text-muted-foreground transition-colors hover:text-accent">
-                    注册
-                  </Link>
-                </li>
               </ul>
             </div>
           </div>

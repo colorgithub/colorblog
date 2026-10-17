@@ -197,11 +197,8 @@ export function Header() {
               </div>
             ) : (
               <div className="hidden items-center gap-2 sm:flex">
-                <Link href="/admin/login" className="btn btn-ghost btn-md">
+                <Link href="/admin/login" className="btn btn-primary btn-md">
                   登录
-                </Link>
-                <Link href="/register" className="btn btn-primary btn-md">
-                  注册
                 </Link>
               </div>
             )}
@@ -238,12 +235,9 @@ export function Header() {
             ))}
 
             {!session && (
-              <div className="mt-2 grid grid-cols-2 gap-2 border-t border-border pt-3">
-                <Link href="/admin/login" className="btn btn-ghost btn-md">
+              <div className="mt-2 border-t border-border pt-3">
+                <Link href="/admin/login" className="btn btn-primary btn-md w-full">
                   登录
-                </Link>
-                <Link href="/register" className="btn btn-primary btn-md">
-                  注册
                 </Link>
               </div>
             )}

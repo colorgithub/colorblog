@@ -8,16 +8,28 @@ datasource db {
 }
 
 model User {
-  id        String    @id @default(cuid())
-  username  String    @unique
-  email     String?   @unique
-  password  String
-  name      String    @default("")
-  role      String    @default("USER")
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  comments  Comment[]
-  files     File[]
+  id       String  @id @default(cuid())
+  username String  @unique
+  email    String? @unique
+  /// 改用 OAuth 登录后不再保存密码。旧账户的密码哈希保留在库里但不再使用。
+  password String?
+  name     String  @default("")
+  role     String  @default("USER")
+
+  /// OAuth 身份绑定：provider 固定为 "vault"，subject 是 vault 的用户 id
+  oauthProvider String?
+  oauthSubject  String? @unique
+
+  /// 旧账户归档时间。归档后禁止登录，但用户行与评论全部保留。
+  archivedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  comments Comment[]
+  files    File[]
+
+  @@index([archivedAt])
 }
 
 model Post {

@@ -246,11 +246,8 @@ export function CommentsSection({ slug }: { slug: string }) {
           <ImageIcon size={20} className="text-muted-foreground/60" />
           <p className="text-sm text-muted-foreground">登录后即可参与讨论</p>
           <div className="flex gap-2">
-            <Link href="/admin/login" className="btn btn-ghost btn-sm">
-              登录
-            </Link>
-            <Link href="/register" className="btn btn-primary btn-sm">
-              注册
+            <Link href="/admin/login" className="btn btn-primary btn-sm">
+              使用 MemoVault 登录
             </Link>
           </div>
         </div>
