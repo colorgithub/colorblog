@@ -23,8 +23,26 @@ function required(name: string, minLength = 1): string {
 /** JWT 签名密钥。绝不允许有兜底值，否则任何人都能伪造管理员令牌。 */
 export const JWT_SECRET = required('JWT_SECRET', 32)
 
-/** 站点对外地址，用于 sitemap、robots 和 Open Graph。 */
-export const SITE_URL = (process.env.SITE_URL || 'http://localhost:3000').replace(/\/+$/, '')
+/**
+ * 站点对外地址，用于 sitemap、robots 和 Open Graph。
+ *
+ * 优先用显式配置；没配时回退到 Vercel 自动注入的域名，
+ * 否则 sitemap 和分享卡片会指向 http://localhost:3000。
+ * VERCEL_PROJECT_PRODUCTION_URL 是稳定的生产域名，
+ * VERCEL_URL 是当前这次部署的域名（预览环境用得上）。
+ */
+function resolveSiteUrl(): string {
+  const explicit = process.env.SITE_URL
+  if (explicit) return explicit.replace(/\/+$/, '')
+
+  const vercelHost =
+    process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL
+  if (vercelHost) return `https://${vercelHost}`
+
+  return 'http://localhost:3000'
+}
+
+export const SITE_URL = resolveSiteUrl()
 
 /** 站点名称，用于 metadata 与页脚。 */
 export const SITE_NAME = process.env.SITE_NAME || 'My Blog'
