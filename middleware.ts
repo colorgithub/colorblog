@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { jwtVerify } from 'jose'
+// 只导入 verify 子路径。从 'jose' 桶文件导入会把 JWE 解密（内部用到
+// CompressionStream/DecompressionStream）一起打进 Edge bundle，构建时
+// 会报两条「A Node.js API is used ... not supported in the Edge Runtime」。
+import { jwtVerify } from 'jose/jwt/verify'
 import { JWT_SECRET } from '@/lib/env'
 import { AUTH_COOKIE } from '@/lib/auth-edge'
 
