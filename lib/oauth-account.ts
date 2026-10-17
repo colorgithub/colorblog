@@ -82,7 +82,11 @@ export async function findOrCreateOAuthUser(
   profile: VaultProfile,
 ): Promise<OAuthUserResult> {
   // 1. 已绑定过
-  const bySubject = await prisma.user.findUnique({
+  //
+  // 用 findFirst 而不是 findUnique：oauthSubject 上没有数据库唯一约束
+  //（原因见 schema.prisma 里的说明），唯一性由下面的写入逻辑保证 ——
+  // 只有当 oauthSubject 为空或恰好等于当前 subject 时才会写入。
+  const bySubject = await prisma.user.findFirst({
     where: { oauthSubject: profile.sub },
   })
 

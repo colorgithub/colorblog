@@ -16,20 +16,26 @@ model User {
   name     String  @default("")
   role     String  @default("USER")
 
-  /// OAuth 身份绑定：provider 固定为 "vault"，subject 是 vault 的用户 id
+  /// OAuth 身份绑定：provider 固定为 "vault"，subject 是 vault 的用户 id。
+  ///
+  /// 这里刻意**不加 @unique**：在已有表上新增唯一约束会被 `prisma db push`
+  /// 判定为「可能丢数据」，从而要求 --accept-data-loss —— 而那个 flag 会让
+  /// 以后真正危险的 schema 变更静默删列。用普通索引 + 应用层保证唯一性，
+  /// 既避免了误报，也保住了「构建时拒绝破坏性变更」这条安全线。
   oauthProvider String?
-  oauthSubject  String? @unique
+  oauthSubject  String?
 
   /// 旧账户归档时间。归档后禁止登录，但用户行与评论全部保留。
   archivedAt DateTime?
+
+  @@index([oauthSubject])
+  @@index([archivedAt])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   comments Comment[]
   files    File[]
-
-  @@index([archivedAt])
 }
 
 model Post {
