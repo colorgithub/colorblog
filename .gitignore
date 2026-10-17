@@ -13,3 +13,6 @@ tsconfig.tsbuildinfo
 *.log
 .vercel
 .DS_Store
+
+# 本地临时脚本与草稿文件（以 __ 开头）
+__*
