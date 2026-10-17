@@ -137,13 +137,13 @@ node scripts/archive-legacy-users.mjs --apply
 
 1. **先部署 vault**，按它的 README 配置数据库、`AUTH_SECRET`，以及：
    ```bash
-   OAUTH_CLIENTS='[{"clientId":"my-blog","clientSecret":"<随机串>","name":"我的博客",
+   OAUTH_CLIENTS='[{"clientId":"color","clientSecret":"<随机串>","name":"我的博客",
      "redirectUris":["https://blog.colordev.space/api/auth/oauth/callback"]}]'
    ```
 2. **再部署本站**，环境变量填上一步的 `clientId` / `clientSecret`：
    ```
    VAULT_ISSUER=https://vault.colordev.space
-   OAUTH_CLIENT_ID=my-blog
+   OAUTH_CLIENT_ID=color
    OAUTH_CLIENT_SECRET=<与 vault 里一致的随机串>
    OAUTH_REDIRECT_URI=https://blog.colordev.space/api/auth/oauth/callback
    ADMIN_EMAILS=<你的 MemoVault 邮箱>
