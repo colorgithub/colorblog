@@ -24,7 +24,8 @@ export default async function LoginPage({
   const session = await getSession()
   if (session) redirect(next)
 
-  const issuer = isOAuthConfigured()
+  const configured = isOAuthConfigured()
+  const issuer = configured
     ? (process.env.VAULT_ISSUER ?? '').replace(/\/+$/, '') || null
     : null
 
@@ -35,7 +36,12 @@ export default async function LoginPage({
         className="absolute left-1/2 top-0 h-64 w-[36rem] max-w-full -translate-x-1/2 rounded-full bg-accent/10 blur-[110px]"
       />
       <div className="relative w-full max-w-sm">
-        <LoginForm next={next} errorCode={searchParams.error} issuer={issuer} />
+        <LoginForm
+          next={next}
+          errorCode={searchParams.error}
+          issuer={issuer}
+          configured={configured}
+        />
       </div>
     </div>
   )

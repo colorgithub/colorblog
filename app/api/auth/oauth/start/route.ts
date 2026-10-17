@@ -19,15 +19,23 @@ export const dynamic = 'force-dynamic'
  * state 里同时带上登录成功后要回到的站内路径，这样回调时不需要额外的
  * Cookie，也不会被篡改成外部地址。
  */
+/**
+ * 出错时回到登录页并带错误码，而不是在浏览器里甩一段 JSON。
+ * 这个端点只会被登录按钮命中，用户看到的应该是页面而不是原始报文。
+ */
+function backToLogin(request: Request, reason: string, next: string) {
+  const url = new URL('/admin/login', request.url)
+  url.searchParams.set('error', reason)
+  if (next !== '/') url.searchParams.set('next', next)
+  return NextResponse.redirect(url, 303)
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const next = safeReturnPath(searchParams.get('next'), '/')
 
   if (!isOAuthConfigured()) {
-    return NextResponse.json(
-      { error: '本站尚未配置 OAuth 登录，请联系站长。' },
-      { status: 503 },
-    )
+    return backToLogin(request, 'not_configured', next)
   }
 
   try {
@@ -54,6 +62,6 @@ export async function GET(request: Request) {
     return response
   } catch (err) {
     console.error('[oauth] 发起登录失败', err)
-    return NextResponse.json({ error: '发起登录失败' }, { status: 500 })
+    return backToLogin(request, 'invalid_client', next)
   }
 }

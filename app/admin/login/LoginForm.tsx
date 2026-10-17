@@ -1,10 +1,11 @@
 'use client'
 
-import { Loader2, ShieldCheck, AlertCircle } from 'lucide-react'
+import { Loader2, ShieldCheck, AlertCircle, Settings2 } from 'lucide-react'
 import { useState } from 'react'
 
-/** vault 回传的错误码 → 人话 */
+/** vault / 本站回传的错误码 → 人话 */
 const ERROR_MESSAGES: Record<string, string> = {
+  not_configured: '本站尚未完成 OAuth 配置，暂时无法登录。',
   access_denied: '你取消了授权。',
   invalid_state: '登录请求已失效，请重新发起。',
   missing_code: '授权服务器没有返回授权码，请重试。',
@@ -24,11 +25,16 @@ interface LoginFormProps {
   errorCode?: string
   /** vault 的对外地址，用于「去注册」链接；未配置时为 null */
   issuer: string | null
+  /** 服务端是否已配齐 OAuth 环境变量 */
+  configured: boolean
 }
 
-export function LoginForm({ next, errorCode, issuer }: LoginFormProps) {
+export function LoginForm({ next, errorCode, issuer, configured }: LoginFormProps) {
   const [navigating, setNavigating] = useState(false)
-  const message = errorCode
+
+  // 未配置时下面已经有专门的说明块，不必再重复一条一样的错误
+  const showError = errorCode && !(errorCode === 'not_configured' && !configured)
+  const message = showError
     ? (ERROR_MESSAGES[errorCode] ?? '登录未完成，请重试。')
     : null
 
@@ -56,25 +62,45 @@ export function LoginForm({ next, errorCode, issuer }: LoginFormProps) {
         </div>
       )}
 
-      <a
-        href={startUrl}
-        onClick={() => setNavigating(true)}
-        aria-disabled={navigating}
-        className="btn btn-primary btn-md w-full"
-      >
-        {navigating ? (
-          <Loader2 size={16} className="animate-spin" />
-        ) : (
-          <ShieldCheck size={16} />
-        )}
-        {navigating ? '正在跳转…' : '使用 MemoVault 登录'}
-      </a>
+      {/* 配置缺失时直接说明，而不是让用户点一个必然失败的按钮 */}
+      {!configured ? (
+        <div className="rounded-xl border border-warning/40 bg-warning/10 px-4 py-3.5">
+          <p className="flex items-center gap-2 text-sm font-medium text-warning">
+            <Settings2 size={15} />
+            尚未完成 OAuth 配置
+          </p>
+          <p className="mt-2 text-xs leading-relaxed text-warning/90">
+            站长需要先在部署环境里配好
+            <code className="mx-1 rounded bg-warning/15 px-1 py-0.5 font-mono">VAULT_ISSUER</code>
+            <code className="mr-1 rounded bg-warning/15 px-1 py-0.5 font-mono">OAUTH_CLIENT_ID</code>
+            <code className="mr-1 rounded bg-warning/15 px-1 py-0.5 font-mono">OAUTH_CLIENT_SECRET</code>
+            <code className="rounded bg-warning/15 px-1 py-0.5 font-mono">OAUTH_REDIRECT_URI</code>
+            ，然后重新部署才能登录。
+          </p>
+        </div>
+      ) : (
+        <>
+          <a
+            href={startUrl}
+            onClick={() => setNavigating(true)}
+            aria-disabled={navigating}
+            className="btn btn-primary btn-md w-full"
+          >
+            {navigating ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <ShieldCheck size={16} />
+            )}
+            {navigating ? '正在跳转…' : '使用 MemoVault 登录'}
+          </a>
 
-      <p className="mt-5 text-center text-xs leading-relaxed text-muted-foreground">
-        登录时你会被带到 MemoVault 的授权页，确认后自动返回本站。
-        <br />
-        本站只会获得你的邮箱和昵称，无法访问你的备忘录与验证码。
-      </p>
+          <p className="mt-5 text-center text-xs leading-relaxed text-muted-foreground">
+            登录时你会被带到 MemoVault 的授权页，确认后自动返回本站。
+            <br />
+            本站只会获得你的邮箱和昵称，无法访问你的备忘录与验证码。
+          </p>
+        </>
+      )}
 
       {issuer && (
         <p className="mt-4 text-center text-sm text-muted-foreground">
