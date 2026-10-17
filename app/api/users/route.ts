@@ -1,25 +1,27 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getSession, isAdmin } from '@/lib/auth'
+import { requireAdmin } from '@/lib/guard'
+import { handleApiError } from '@/lib/api-error'
 
 export async function GET() {
-  const session = await getSession()
-  if (!session || !isAdmin(session)) {
-    return NextResponse.json({ error: '无权限' }, { status: 403 })
+  const guard = await requireAdmin()
+  if (!guard.ok) return guard.response
+
+  try {
+    const users = await prisma.user.findMany({
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        name: true,
+        role: true,
+        createdAt: true,
+        _count: { select: { comments: true, files: true } },
+      },
+    })
+    return NextResponse.json(users)
+  } catch (err) {
+    return handleApiError(err, 'users.list')
   }
-
-  const users = await prisma.user.findMany({
-    orderBy: { createdAt: 'desc' },
-    select: {
-      id: true,
-      username: true,
-      email: true,
-      name: true,
-      role: true,
-      createdAt: true,
-      _count: { select: { comments: true, files: true } },
-    },
-  })
-
-  return NextResponse.json(users)
 }

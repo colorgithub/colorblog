@@ -1,10 +1,12 @@
 'use client'
 
-import { useState, FormEvent, useRef } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import { Save, Eye, EyeOff, ImageIcon, Paperclip } from 'lucide-react'
+import { Save, Eye, EyeOff, ImageIcon, Loader2, Hash, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { FileUploader } from '@/components/FileUploader'
+import { cn } from '@/lib/utils'
+import { MarkdownRenderer } from '@/components/MarkdownRenderer'
+import { FileUploader, type UploadResult } from '@/components/FileUploader'
 
 interface PostData {
   title: string
@@ -15,232 +17,289 @@ interface PostData {
   published: boolean
 }
 
-export function PostEditor({ initialData, isEditing }: {
-  initialData?: PostData & { id?: string }
+interface PostEditorProps {
+  initialData?: PostData
+  /** 编辑模式下必须传文章 id，避免依赖 initialData 里混入的字段 */
+  postId?: string
   isEditing?: boolean
-}) {
+}
+
+export function PostEditor({ initialData, postId, isEditing }: PostEditorProps) {
   const router = useRouter()
-  const fileRef = useRef<HTMLInputElement>(null)
   const textRef = useRef<HTMLTextAreaElement>(null)
+
   const [form, setForm] = useState<PostData>({
-    title: initialData?.title || '',
-    slug: initialData?.slug || '',
-    content: initialData?.content || '',
-    excerpt: initialData?.excerpt || '',
-    tags: initialData?.tags || '',
+    title: initialData?.title ?? '',
+    slug: initialData?.slug ?? '',
+    content: initialData?.content ?? '',
+    excerpt: initialData?.excerpt ?? '',
+    tags: initialData?.tags ?? '',
     published: initialData?.published ?? false,
   })
   const [loading, setLoading] = useState(false)
   const [preview, setPreview] = useState(false)
-  const [uploading, setUploading] = useState(false)
-  const [fileUploading, setFileUploading] = useState(false)
+  const [dirty, setDirty] = useState(false)
 
-  const generateSlug = (title: string) =>
-    title.toLowerCase().replace(/[^\w\u4e00-\u9fa5]+/g, '-').replace(/^-+|-+$/g, '') || 'untitled'
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    if (!file.type.startsWith('image/')) { toast.error('请选择图片文件'); return }
-    if (file.size > 4 * 1024 * 1024) { toast.error('图片不能超过 4MB'); return }
-
-    setUploading(true)
-    try {
-      const fd = new FormData()
-      fd.append('file', file)
-
-      const res = await fetch('/api/files', { method: 'POST', body: fd })
-      const data = await res.json()
-      if (!res.ok) { toast.error(data.error || '上传失败'); return }
-
-      const imgMd = `![${data.name.replace(/\.[^.]+$/, '')}](${data.url})`
-      const ta = textRef.current
-      if (ta) {
-        const start = ta.selectionStart
-        const end = ta.selectionEnd
-        const before = form.content.slice(0, start)
-        const after = form.content.slice(end)
-        const newContent = before + imgMd + after
-        setForm((p) => ({ ...p, content: newContent }))
-        requestAnimationFrame(() => {
-          ta.selectionStart = ta.selectionEnd = start + imgMd.length
-          ta.focus()
-        })
-      }
-      toast.success('图片已上传')
-    } catch {
-      toast.error('图片上传失败')
-    } finally {
-      setUploading(false)
-      e.target.value = ''
+  // 有未保存改动时离开页面给出提示
+  useEffect(() => {
+    if (!dirty) return
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ''
     }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [dirty])
+
+  const update = (patch: Partial<PostData>) => {
+    setForm((prev) => ({ ...prev, ...patch }))
+    setDirty(true)
   }
 
-  const handleFileInsert = (result: { url: string; name: string }) => {
+  const generateSlug = (title: string) =>
+    title
+      .toLowerCase()
+      .replace(/[^\w\u4e00-\u9fa5]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'untitled'
+
+  const insertAtCursor = (snippet: string) => {
     const ta = textRef.current
-    if (!ta) return
-    const linkMd = `[${result.name}](${result.url})`
+    if (!ta) {
+      update({ content: form.content + (form.content ? '\n' : '') + snippet })
+      return
+    }
     const start = ta.selectionStart
     const end = ta.selectionEnd
-    const before = form.content.slice(0, start)
-    const after = form.content.slice(end)
-    setForm((p) => ({ ...p, content: before + linkMd + after }))
+    const next = form.content.slice(0, start) + snippet + form.content.slice(end)
+    update({ content: next })
     requestAnimationFrame(() => {
-      ta.selectionStart = ta.selectionEnd = start + linkMd.length
+      ta.selectionStart = ta.selectionEnd = start + snippet.length
       ta.focus()
     })
   }
 
+  const handleUpload = ({ url, name, inline }: UploadResult) => {
+    const alt = name.replace(/\.[^.]+$/, '')
+    insertAtCursor(inline ? `![${alt}](${url})` : `[${name}](${url})`)
+    toast.success('已插入')
+  }
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!form.title.trim()) { toast.error('请输入标题'); return }
-    if (!form.slug.trim()) { toast.error('请输入 Slug'); return }
-    if (!form.content.trim()) { toast.error('请输入内容'); return }
+
+    if (!form.title.trim()) return toast.error('请输入标题')
+    if (!form.slug.trim()) return toast.error('请输入 Slug')
+    if (!form.content.trim()) return toast.error('请输入正文')
 
     setLoading(true)
     try {
-      const url = isEditing ? `/api/posts/${initialData!.id}` : '/api/posts'
-      const method = isEditing ? 'PUT' : 'POST'
-
+      const url = isEditing ? `/api/posts/${postId}` : '/api/posts'
       const res = await fetch(url, {
-        method,
+        method: isEditing ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       })
+      const data = await res.json().catch(() => ({}))
 
       if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || '保存失败')
+        toast.error(data.error || '保存失败')
+        return
       }
 
-      toast.success(isEditing ? '文章已更新' : '文章已发布')
+      setDirty(false)
+      toast.success(isEditing ? '文章已更新' : '文章已创建')
       router.push('/admin/posts')
       router.refresh()
-    } catch (err: any) {
-      toast.error(err.message || '保存失败')
+    } catch {
+      toast.error('网络错误，请重试')
     } finally {
       setLoading(false)
     }
   }
 
+  const canSubmit = form.title.trim() && form.slug.trim() && form.content.trim()
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1.5">标题</label>
-            <input type="text" value={form.title}
-              onChange={(e) => setForm(p => ({ ...p, title: e.target.value, slug: isEditing ? p.slug : generateSlug(e.target.value) }))}
-              className="w-full px-4 py-3 rounded-xl border bg-[hsl(var(--background))] text-lg font-medium focus:outline-none focus:ring-2 focus:ring-[hsl(var(--accent))] transition-all"
-              placeholder="文章标题" />
-          </div>
+    <form onSubmit={handleSubmit} className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      {/* 主编辑区 */}
+      <div className="space-y-4">
+        <div>
+          <label htmlFor="title" className="label-field">
+            标题
+          </label>
+          <input
+            id="title"
+            type="text"
+            value={form.title}
+            onChange={(e) =>
+              update({
+                title: e.target.value,
+                // 新建时跟随标题自动生成 slug，编辑时不覆盖已有 slug
+                ...(isEditing ? {} : { slug: generateSlug(e.target.value) }),
+              })
+            }
+            className="input-field text-base font-medium"
+            placeholder="文章标题"
+            maxLength={200}
+          />
+        </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-1.5">Slug</label>
-            <input type="text" value={form.slug}
-              onChange={(e) => setForm(p => ({ ...p, slug: e.target.value }))}
-              className="w-full px-4 py-2.5 rounded-xl border bg-[hsl(var(--background))] text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[hsl(var(--accent))] transition-all"
-              placeholder="article-url-slug" />
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-sm font-medium">内容 (Markdown)</label>
-              <button type="button" onClick={() => setPreview(!preview)}
-                className="text-xs text-[hsl(var(--accent))] hover:underline flex items-center gap-1">
-                {preview ? <EyeOff size={14} /> : <Eye size={14} />}{preview ? '编辑' : '预览'}
-              </button>
-            </div>
-            {preview ? (
-              <div className="min-h-[400px] rounded-xl border bg-[hsl(var(--background))] p-4 prose prose-sm dark:prose-invert max-w-none overflow-auto">
-                <div dangerouslySetInnerHTML={{ __html: simpleMarkdown(form.content) }} />
-              </div>
-            ) : (
-              <div className="relative">
-                <textarea ref={textRef} value={form.content}
-                  onChange={(e) => setForm(p => ({ ...p, content: e.target.value }))}
-                  rows={16}
-                  className="w-full px-4 py-3 pb-12 rounded-xl border bg-[hsl(var(--background))] text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[hsl(var(--accent))] transition-all resize-y"
-                  placeholder="使用 Markdown 编写文章内容..." />
-                <div className="absolute left-2 bottom-2 flex items-center gap-1">
-                  <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[hsl(var(--muted))] text-xs font-medium hover:bg-[hsl(var(--muted-foreground))/20] transition-all disabled:opacity-50"
-                    title="上传图片">
-                    <ImageIcon size={14} />{uploading ? '处理中...' : '图片'}
-                  </button>
-                  <input ref={fileRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
-                  <FileUploader onInsert={handleFileInsert} />
-                </div>
-              </div>
-            )}
+        <div>
+          <label htmlFor="slug" className="label-field">
+            <span className="inline-flex items-center gap-1.5">
+              <Hash size={13} className="text-muted-foreground" />
+              Slug（URL 地址）
+            </span>
+          </label>
+          <div className="flex items-center gap-2">
+            <span className="shrink-0 font-mono text-xs text-muted-foreground">/posts/</span>
+            <input
+              id="slug"
+              type="text"
+              value={form.slug}
+              onChange={(e) => update({ slug: e.target.value })}
+              className="input-field font-mono text-sm"
+              placeholder="article-url-slug"
+              maxLength={120}
+            />
           </div>
         </div>
 
-        <div className="space-y-4">
-          <div className="rounded-2xl border bg-[hsl(var(--card))] p-5 space-y-4">
-            <h3 className="text-sm font-semibold">发布设置</h3>
-
-            <label className="flex items-center justify-between cursor-pointer">
-              <span className="text-sm">发布状态</span>
-              <button type="button" onClick={() => setForm(p => ({ ...p, published: !p.published }))}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${form.published ? 'bg-[hsl(var(--accent))]' : 'bg-[hsl(var(--muted))]'}`}>
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${form.published ? 'translate-x-6' : 'translate-x-1'}`} />
-              </button>
+        <div>
+          <div className="mb-1.5 flex items-center justify-between">
+            <label htmlFor="content" className="text-sm font-medium">
+              正文（Markdown）
             </label>
-
-            <div>
-              <label className="block text-sm font-medium mb-1.5">摘要</label>
-              <textarea value={form.excerpt}
-                onChange={(e) => setForm(p => ({ ...p, excerpt: e.target.value }))}
-                rows={3}
-                className="w-full px-3 py-2 rounded-xl border bg-[hsl(var(--background))] text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--accent))] transition-all resize-none"
-                placeholder="文章简介..." />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1.5">标签</label>
-              <input type="text" value={form.tags}
-                onChange={(e) => setForm(p => ({ ...p, tags: e.target.value }))}
-                className="w-full px-3 py-2 rounded-xl border bg-[hsl(var(--background))] text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--accent))] transition-all"
-                placeholder="技术, 生活" />
-            </div>
+            <button
+              type="button"
+              onClick={() => setPreview((v) => !v)}
+              className="btn btn-subtle btn-sm"
+            >
+              {preview ? <EyeOff size={14} /> : <Eye size={14} />}
+              {preview ? '继续编辑' : '预览'}
+            </button>
           </div>
 
-          <button type="submit" disabled={loading}
-            className="w-full py-3 px-4 rounded-xl bg-[hsl(var(--accent))] text-white font-medium hover:brightness-110 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
-            <Save size={18} />{loading ? '保存中...' : isEditing ? '更新文章' : '发布文章'}
-          </button>
+          {preview ? (
+            <div className="min-h-[26rem] rounded-xl border border-border bg-card p-6">
+              {form.content.trim() ? (
+                <MarkdownRenderer content={form.content} className="prose-sm sm:prose-base" />
+              ) : (
+                <p className="text-sm text-muted-foreground">还没有内容可预览</p>
+              )}
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded-xl border border-input bg-card transition-colors focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20">
+              <textarea
+                id="content"
+                ref={textRef}
+                value={form.content}
+                onChange={(e) => update({ content: e.target.value })}
+                rows={20}
+                className="w-full resize-y border-0 bg-transparent px-4 py-3.5 font-mono text-sm leading-relaxed focus:outline-none"
+                placeholder={'# 标题\n\n用 Markdown 写正文…\n\n```js\nconsole.log("hello")\n```'}
+              />
+              <div className="flex items-center gap-2 border-t border-border px-3 py-2.5">
+                <FileUploader onInsert={handleUpload} label="插入图片 / 附件" />
+                <span className="text-xs text-muted-foreground">
+                  支持 Markdown、表格、代码块
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* 侧栏 */}
+      <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
+        <div className="card-surface space-y-5 p-5">
+          <h2 className="text-sm font-semibold">发布设置</h2>
+
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium">{form.published ? '已发布' : '草稿'}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {form.published ? '所有人都能访问' : '仅自己可见'}
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={form.published}
+              onClick={() => update({ published: !form.published })}
+              className={cn(
+                'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors',
+                form.published ? 'bg-accent' : 'bg-input'
+              )}
+            >
+              <span
+                className={cn(
+                  'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                  form.published ? 'translate-x-6' : 'translate-x-1'
+                )}
+              />
+            </button>
+          </div>
+
+          <div>
+            <label htmlFor="excerpt" className="label-field">
+              摘要
+            </label>
+            <textarea
+              id="excerpt"
+              value={form.excerpt}
+              onChange={(e) => update({ excerpt: e.target.value })}
+              rows={3}
+              maxLength={500}
+              className="input-field resize-none text-sm"
+              placeholder="一句话概括这篇文章，用于列表和分享卡片"
+            />
+            <p className="mt-1 text-right text-[11px] text-muted-foreground tabular-nums">
+              {form.excerpt.length}/500
+            </p>
+          </div>
+
+          <div>
+            <label htmlFor="tags" className="label-field">
+              标签
+            </label>
+            <input
+              id="tags"
+              type="text"
+              value={form.tags}
+              onChange={(e) => update({ tags: e.target.value })}
+              className="input-field text-sm"
+              placeholder="技术, 生活"
+              maxLength={200}
+            />
+            <p className="mt-1 text-[11px] text-muted-foreground">用英文逗号分隔</p>
+          </div>
+        </div>
+
+        {dirty && (
+          <p className="flex items-center gap-1.5 text-xs text-warning">
+            <AlertCircle size={13} />
+            有未保存的修改
+          </p>
+        )}
+
+        <button
+          type="submit"
+          disabled={loading || !canSubmit}
+          className="btn btn-primary btn-md w-full"
+        >
+          {loading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+          {loading ? '保存中…' : isEditing ? '更新文章' : '发布文章'}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => router.push('/admin/posts')}
+          className="btn btn-ghost btn-md w-full"
+        >
+          取消
+        </button>
+      </aside>
     </form>
   )
-}
-
-function simpleMarkdown(md: string): string {
-  const escaped = md.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  let html = '', inCode = false
-  for (const line of escaped.split('\n')) {
-    if (line.startsWith('```')) {
-      if (inCode) { html += '</code></pre>'; inCode = false } else { html += '<pre><code>'; inCode = true }
-      continue
-    }
-    if (inCode) { html += line + '\n'; continue }
-    if (line.startsWith('### ')) html += `<h3>${line.slice(4)}</h3>`
-    else if (line.startsWith('## ')) html += `<h2>${line.slice(3)}</h2>`
-    else if (line.startsWith('# ')) html += `<h1>${line.slice(2)}</h1>`
-    else if (line.startsWith('- ')) html += `<li>${line.slice(2)}</li>`
-    else if (line.startsWith('> ')) html += `<blockquote>${line.slice(2)}</blockquote>`
-    else if (line.trim() === '') html += '<br/>'
-    else {
-      html += '<p>' + line
-        .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
-        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*(.+?)\*/g, '<em>$1</em>')
-        .replace(/`(.+?)`/g, '<code>$1</code>')
-        .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" class="max-w-full rounded-xl my-2" />')
-        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>') + '</p>'
-    }
-  }
-  if (inCode) html += '</code></pre>'
-  return html
 }

@@ -1,54 +1,62 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getSession } from '@/lib/auth'
+import { getSession, isAdmin } from '@/lib/auth'
+import { requireAdmin } from '@/lib/guard'
+import { handleApiError, readJson } from '@/lib/api-error'
+import { parsePostInput } from '@/lib/post-input'
 
+/** 支持用 slug 或 id 定位文章（后台编辑用 id，前台用 slug）。 */
 async function findPost(slugOrId: string) {
-  let post = await prisma.post.findUnique({ where: { slug: slugOrId } })
-  if (!post) post = await prisma.post.findUnique({ where: { id: slugOrId } })
-  return post
+  const post = await prisma.post.findUnique({ where: { slug: slugOrId } })
+  if (post) return post
+  return prisma.post.findUnique({ where: { id: slugOrId } })
 }
 
 export async function GET(
   _request: Request,
   { params }: { params: { slug: string } }
 ) {
-  const post = await findPost(params.slug)
-  if (!post) return NextResponse.json({ error: '文章不存在' }, { status: 404 })
+  try {
+    const post = await findPost(params.slug)
+    // 未发布文章对非管理员一律按「不存在」处理，避免通过状态码差异探测草稿
+    if (!post) return NextResponse.json({ error: '文章不存在' }, { status: 404 })
 
-  const session = await getSession()
-  if (!post.published && !session) {
-    return NextResponse.json({ error: '文章不存在' }, { status: 404 })
+    const session = await getSession()
+    if (!post.published && !isAdmin(session)) {
+      return NextResponse.json({ error: '文章不存在' }, { status: 404 })
+    }
+
+    return NextResponse.json(post)
+  } catch (err) {
+    return handleApiError(err, 'posts.get')
   }
-
-  return NextResponse.json(post)
 }
 
 export async function PUT(
   request: Request,
   { params }: { params: { slug: string } }
 ) {
-  const session = await getSession()
-  if (!session) return NextResponse.json({ error: '未登录' }, { status: 401 })
+  // 只有管理员能改文章。原实现只判断「是否登录」，任何注册用户都能改写全站内容。
+  const guard = await requireAdmin()
+  if (!guard.ok) return guard.response
+
+  const body = await readJson(request)
+  const parsed = parsePostInput(body, true)
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 })
+  }
 
   try {
-    const data = await request.json()
     const post = await findPost(params.slug)
     if (!post) return NextResponse.json({ error: '文章不存在' }, { status: 404 })
 
     const updated = await prisma.post.update({
       where: { id: post.id },
-      data: {
-        title: data.title,
-        slug: data.slug,
-        content: data.content,
-        excerpt: data.excerpt,
-        tags: data.tags,
-        published: data.published,
-      },
+      data: parsed.data,
     })
     return NextResponse.json(updated)
-  } catch {
-    return NextResponse.json({ error: '更新失败' }, { status: 500 })
+  } catch (err) {
+    return handleApiError(err, 'posts.update')
   }
 }
 
@@ -56,8 +64,8 @@ export async function DELETE(
   _request: Request,
   { params }: { params: { slug: string } }
 ) {
-  const session = await getSession()
-  if (!session) return NextResponse.json({ error: '未登录' }, { status: 401 })
+  const guard = await requireAdmin()
+  if (!guard.ok) return guard.response
 
   try {
     const post = await findPost(params.slug)
@@ -65,7 +73,7 @@ export async function DELETE(
 
     await prisma.post.delete({ where: { id: post.id } })
     return NextResponse.json({ success: true })
-  } catch {
-    return NextResponse.json({ error: '删除失败' }, { status: 500 })
+  } catch (err) {
+    return handleApiError(err, 'posts.delete')
   }
 }

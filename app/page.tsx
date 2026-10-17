@@ -1,80 +1,141 @@
 import Link from 'next/link'
+import { ArrowRight, Sparkles } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
-import { formatDate, cn } from '@/lib/utils'
-import { ArrowRight, Calendar, Tag } from 'lucide-react'
+import { SITE_NAME } from '@/lib/env'
+import { PostCard, EmptyPosts, type PostCardData } from '@/components/PostCard'
 
+// 首页走 ISR：60 秒重新验证一次，不必每个请求都查库
 export const revalidate = 60
-export const dynamic = 'force-dynamic'
 
-async function getPosts() {
+const HOME_LIMIT = 7
+
+interface HomeData {
+  posts: PostCardData[]
+  total: number
+  /** 数据库暂时不可用时为 true，用于给访客一个诚实的提示，而不是假装「还没有文章」 */
+  failed: boolean
+}
+
+async function getPosts(): Promise<HomeData> {
   try {
-    return await prisma.post.findMany({
-      where: { published: true },
-      orderBy: { createdAt: 'desc' },
-    })
-  } catch {
-    return []
+    const [posts, total] = await Promise.all([
+      prisma.post.findMany({
+        where: { published: true },
+        orderBy: { createdAt: 'desc' },
+        take: HOME_LIMIT,
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+          excerpt: true,
+          tags: true,
+          createdAt: true,
+        },
+      }),
+      prisma.post.count({ where: { published: true } }),
+    ])
+    return { posts, total, failed: false }
+  } catch (err) {
+    // 首页是 ISR 页面，会在构建期预渲染。这里如果不兜住，数据库抖动
+    // 会直接让整个部署失败。记日志 + 降级展示，比让构建挂掉更合理。
+    console.error('[home] 加载文章失败', err)
+    return { posts: [], total: 0, failed: true }
   }
 }
 
 export default async function HomePage() {
-  const posts = await getPosts()
+  const { posts, total, failed } = await getPosts()
+  const [featured, ...rest] = posts
 
   return (
-    <div className="min-h-screen">
+    <div>
+      {/* ============ Hero ============ */}
       <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--accent))/5] via-transparent to-transparent" />
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-20 pb-16 sm:pt-28 sm:pb-20">
-          <div className="max-w-2xl">
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.1]">
-              我的博客
+        {/* 装饰层：网格 + 光晕 */}
+        <div
+          aria-hidden
+          className="bg-grid absolute inset-0 [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_40%,transparent_100%)]"
+        />
+        <div
+          aria-hidden
+          className="absolute -top-32 left-1/2 h-72 w-[42rem] max-w-full -translate-x-1/2 rounded-full bg-accent/20 blur-[120px]"
+        />
+
+        <div className="container-page relative pb-16 pt-20 sm:pb-20 sm:pt-28">
+          <div className="mx-auto max-w-2xl text-center">
+            <span className="inline-flex animate-fade-up items-center gap-2 rounded-full border border-border bg-card/70 px-3.5 py-1.5 text-xs font-medium text-muted-foreground shadow-soft backdrop-blur">
+              <Sparkles size={13} className="text-accent" />
+              {failed ? '内容加载中' : `共 ${total} 篇文章`}
+            </span>
+
+            <h1
+              className="mt-6 animate-fade-up text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl lg:text-6xl"
+              style={{ animationDelay: '60ms' }}
+            >
+              {SITE_NAME}
             </h1>
-            <p className="mt-6 text-lg sm:text-xl text-[hsl(var(--muted-foreground))] leading-relaxed">
+
+            <p
+              className="mx-auto mt-5 max-w-xl animate-fade-up text-base leading-relaxed text-muted-foreground sm:text-lg"
+              style={{ animationDelay: '120ms' }}
+            >
               记录技术、生活和思考。用文字沉淀知识，用分享连接世界。
             </p>
+
+            <div
+              className="mt-9 flex animate-fade-up flex-wrap items-center justify-center gap-3"
+              style={{ animationDelay: '180ms' }}
+            >
+              <Link href="/posts" className="btn btn-primary btn-md">
+                浏览全部文章
+                <ArrowRight size={16} />
+              </Link>
+              <Link href="/feed.xml" className="btn btn-ghost btn-md">
+                订阅 RSS
+              </Link>
+            </div>
           </div>
         </div>
       </section>
 
-      <section className="max-w-5xl mx-auto px-4 sm:px-6 pb-20">
+      {/* ============ 文章列表 ============ */}
+      <section className="container-page pb-20">
         {posts.length === 0 ? (
-          <div className="text-center py-20">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[hsl(var(--muted))] mb-6">
-              <svg className="w-8 h-8 text-[hsl(var(--muted-foreground))]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-semibold mb-2">还没有文章</h3>
-            <p className="text-[hsl(var(--muted-foreground))]">去管理后台写第一篇博客吧</p>
-          </div>
+          failed ? (
+            <EmptyPosts
+              title="内容暂时无法加载"
+              hint="数据库连接异常，请稍后刷新重试"
+            />
+          ) : (
+            <EmptyPosts title="还没有文章" hint="登录管理后台，写下第一篇博客吧" />
+          )
         ) : (
-          <div className={cn('grid gap-6', posts.length === 1 ? 'max-w-xl' : 'md:grid-cols-2 lg:grid-cols-3')}>
-            {posts.map((post, i) => (
-              <Link key={post.id} href={`/posts/${post.slug}`}
-                className={cn(
-                  'group relative overflow-hidden rounded-2xl border bg-[hsl(var(--card))] p-6',
-                  'hover:shadow-lg hover:shadow-[hsl(var(--accent))/5] hover:border-[hsl(var(--accent))/30]',
-                  'transition-all duration-300', i === 0 && posts.length > 1 && 'md:col-span-2'
-                )}
-                style={{ animationDelay: `${i * 100}ms` }}>
-                <div className="flex flex-col h-full">
-                  <div className="flex items-center gap-2 text-xs text-[hsl(var(--muted-foreground))] mb-3">
-                    <Calendar size={14} /><time>{formatDate(post.createdAt)}</time>
-                    {post.tags && <><span>·</span><Tag size={14} /><span>{post.tags.split(',')[0].trim()}</span></>}
-                  </div>
-                  <h2 className={cn('font-bold tracking-tight group-hover:text-[hsl(var(--accent))] transition-colors', i === 0 && posts.length > 1 ? 'text-2xl' : 'text-lg')}>
-                    {post.title}
-                  </h2>
-                  {post.excerpt && <p className="mt-2 text-sm text-[hsl(var(--muted-foreground))] line-clamp-2">{post.excerpt}</p>}
-                  <div className="mt-auto pt-4">
-                    <span className="inline-flex items-center gap-1 text-sm font-medium text-[hsl(var(--accent))]">
-                      阅读更多 <ArrowRight size={14} className="transition-transform group-hover:translate-x-1" />
-                    </span>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
+          <>
+            <div className="mb-8 flex items-end justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold tracking-tight">最新文章</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  持续更新中，共 {total} 篇
+                </p>
+              </div>
+              {total > HOME_LIMIT && (
+                <Link
+                  href="/posts"
+                  className="group inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-accent"
+                >
+                  全部文章
+                  <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" />
+                </Link>
+              )}
+            </div>
+
+            <div className="grid gap-5 md:grid-cols-2">
+              {featured && <PostCard post={featured} featured className="md:col-span-2" />}
+              {rest.map((post) => (
+                <PostCard key={post.id} post={post} />
+              ))}
+            </div>
+          </>
         )}
       </section>
     </div>

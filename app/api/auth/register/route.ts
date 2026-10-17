@@ -1,41 +1,55 @@
 import { NextResponse } from 'next/server'
-import { registerUser, signToken } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import {
+  registerUser,
+  signToken,
+  authCookieOptions,
+  validateRegisterInput,
+  AUTH_COOKIE,
+} from '@/lib/auth'
+import { ALLOW_REGISTRATION } from '@/lib/env'
+import { clientIp, rateLimit, tooManyRequests } from '@/lib/rate-limit'
+import { readJson } from '@/lib/api-error'
 
 export async function POST(request: Request) {
+  if (!ALLOW_REGISTRATION) {
+    return NextResponse.json({ error: '本站已关闭注册' }, { status: 403 })
+  }
+
+  const ip = clientIp(request)
+  const limit = rateLimit(`register:${ip}`, 5, 60 * 60 * 1000)
+  if (!limit.ok) {
+    return NextResponse.json(tooManyRequests(limit, '注册过于频繁'), { status: 429 })
+  }
+
+  const body = await readJson<{ username?: unknown; password?: unknown; name?: unknown }>(request)
+  const username = typeof body?.username === 'string' ? body.username.trim() : ''
+  const password = typeof body?.password === 'string' ? body.password : ''
+  const name = typeof body?.name === 'string' ? body.name.trim() : ''
+
+  const invalid = validateRegisterInput({ username, password, name })
+  if (invalid) {
+    return NextResponse.json({ error: invalid }, { status: 400 })
+  }
+
   try {
-    const { username, password, name } = await request.json()
-
-    if (!username || !password || !name) {
-      return NextResponse.json({ error: '用户名、密码和显示名称为必填项' }, { status: 400 })
-    }
-    if (username.length < 3) {
-      return NextResponse.json({ error: '用户名至少3个字符' }, { status: 400 })
-    }
-    if (password.length < 6) {
-      return NextResponse.json({ error: '密码至少6个字符' }, { status: 400 })
-    }
-
     const result = await registerUser(username, password, name)
-    if (result.error) {
-      return NextResponse.json({ error: result.error }, { status: 409 })
+    if (result.error || !result.user) {
+      return NextResponse.json({ error: result.error ?? '注册失败' }, { status: 409 })
     }
 
-    // Find the created user to sign the token
-    const user = await prisma.user.findUnique({ where: { username } })
-    const token = signToken({ userId: user!.id, username: user!.username, name: user!.name, role: user!.role })
+    // 直接用创建结果签发令牌，不再多查一次库
+    const token = signToken({
+      userId: result.user.id,
+      username: result.user.username,
+      name: result.user.name,
+      role: result.user.role,
+    })
 
     const response = NextResponse.json({ success: true })
-    response.cookies.set('auth_token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 7 * 24 * 60 * 60,
-    })
+    response.cookies.set(AUTH_COOKIE, token, authCookieOptions())
     return response
   } catch (err) {
-    console.error('Register error:', err)
+    console.error('[api:auth.register]', err)
     return NextResponse.json({ error: '服务器错误' }, { status: 500 })
   }
 }

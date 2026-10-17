@@ -1,88 +1,44 @@
-'use client'
-
-import { useState, FormEvent } from 'react'
+import type { Metadata } from 'next'
 import Link from 'next/link'
-import { UserPlus, Eye, EyeOff } from 'lucide-react'
+import { Lock } from 'lucide-react'
+import { ALLOW_REGISTRATION } from '@/lib/env'
+import { RegisterForm } from './RegisterForm'
+
+export const metadata: Metadata = {
+  title: '注册',
+  robots: { index: false, follow: false },
+}
 
 export default function RegisterPage() {
-  const [form, setForm] = useState({ username: '', password: '', name: '' })
-  const [showPassword, setShowPassword] = useState(false)
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
-
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
-
-    try {
-      const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      })
-      const data = await res.json()
-      if (!res.ok) { setError(data.error || '注册失败'); return }
-      window.location.href = '/'
-    } catch {
-      setError('网络错误，请重试')
-    } finally {
-      setLoading(false)
-    }
-  }
-
   return (
-    <div className="min-h-[70vh] flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[hsl(var(--accent))/10] mb-4">
-            <UserPlus className="w-7 h-7 text-[hsl(var(--accent))]" />
-          </div>
-          <h1 className="text-2xl font-bold">注册账号</h1>
-          <p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">创建账号后可以发表评论</p>
-        </div>
+    <div className="relative flex min-h-[75vh] items-center justify-center px-5 py-16">
+      <div
+        aria-hidden
+        className="absolute left-1/2 top-0 h-64 w-[36rem] max-w-full -translate-x-1/2 rounded-full bg-accent/10 blur-[110px]"
+      />
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <div className="p-3 text-sm text-red-600 bg-red-50 dark:bg-red-950/50 dark:text-red-400 rounded-xl">{error}</div>
-          )}
-
-          <div>
-            <label className="block text-sm font-medium mb-1.5">用户名</label>
-            <input type="text" value={form.username} onChange={(e) => setForm(p => ({ ...p, username: e.target.value }))}
-              className="w-full px-4 py-2.5 rounded-xl border bg-[hsl(var(--background))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--accent))] transition-all"
-              placeholder="至少3个字符" required minLength={3} />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1.5">显示名称</label>
-            <input type="text" value={form.name} onChange={(e) => setForm(p => ({ ...p, name: e.target.value }))}
-              className="w-full px-4 py-2.5 rounded-xl border bg-[hsl(var(--background))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--accent))] transition-all"
-              placeholder="你希望别人怎么称呼你" required />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1.5">密码</label>
-            <div className="relative">
-              <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={(e) => setForm(p => ({ ...p, password: e.target.value }))}
-                className="w-full px-4 py-2.5 pr-10 rounded-xl border bg-[hsl(var(--background))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--accent))] transition-all"
-                placeholder="至少6个字符" required minLength={6} />
-              <button type="button" onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]">
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
+      <div className="relative w-full max-w-sm">
+        {ALLOW_REGISTRATION ? (
+          <RegisterForm />
+        ) : (
+          <div className="card-surface px-8 py-12 text-center">
+            <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-muted text-muted-foreground">
+              <Lock size={26} />
+            </div>
+            <h1 className="mt-5 text-xl font-bold tracking-tight">本站已关闭注册</h1>
+            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+              目前不接受自助注册。如需账号，请联系站长开通。
+            </p>
+            <div className="mt-7 flex justify-center gap-3">
+              <Link href="/" className="btn btn-ghost btn-md">
+                回到首页
+              </Link>
+              <Link href="/admin/login" className="btn btn-primary btn-md">
+                去登录
+              </Link>
             </div>
           </div>
-
-          <button type="submit" disabled={loading}
-            className="w-full py-2.5 px-4 rounded-xl bg-[hsl(var(--accent))] text-white font-medium hover:brightness-110 disabled:opacity-50 transition-all">
-            {loading ? '注册中...' : '注册'}
-          </button>
-
-          <p className="text-center text-sm text-[hsl(var(--muted-foreground))]">
-            已有账号？<Link href="/admin/login" className="text-[hsl(var(--accent))] hover:underline">登录</Link>
-          </p>
-        </form>
+        )}
       </div>
     </div>
   )

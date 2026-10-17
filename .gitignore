@@ -3,3 +3,13 @@ node_modules
 .env
 .env.local
 .env.production
+
+# 本地安全审计文档：含漏洞细节与旧默认凭据，不随公开仓库发布
+整改方案.md
+*整改方案*.md
+
+# 构建与本地产物
+tsconfig.tsbuildinfo
+*.log
+.vercel
+.DS_Store

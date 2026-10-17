@@ -1,25 +1,34 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getSession, isAdmin } from '@/lib/auth'
+import { isAdmin } from '@/lib/auth'
+import { requireLogin } from '@/lib/guard'
+import { handleApiError } from '@/lib/api-error'
 
 export async function DELETE(
   _request: Request,
   { params }: { params: { id: string } }
 ) {
-  const session = await getSession()
-  if (!session) {
-    return NextResponse.json({ error: '请先登录' }, { status: 401 })
-  }
+  const guard = await requireLogin()
+  if (!guard.ok) return guard.response
+  const { session } = guard
 
-  const comment = await prisma.comment.findUnique({ where: { id: params.id } })
-  if (!comment) {
-    return NextResponse.json({ error: '评论不存在' }, { status: 404 })
-  }
+  try {
+    const comment = await prisma.comment.findUnique({
+      where: { id: params.id },
+      select: { id: true, userId: true },
+    })
+    if (!comment) {
+      return NextResponse.json({ error: '评论不存在' }, { status: 404 })
+    }
 
-  if (comment.userId !== session.userId && !isAdmin(session)) {
-    return NextResponse.json({ error: '无权删除此评论' }, { status: 403 })
-  }
+    // 作者本人或管理员才能删
+    if (comment.userId !== session.userId && !isAdmin(session)) {
+      return NextResponse.json({ error: '无权删除此评论' }, { status: 403 })
+    }
 
-  await prisma.comment.delete({ where: { id: params.id } })
-  return NextResponse.json({ success: true })
+    await prisma.comment.delete({ where: { id: comment.id } })
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    return handleApiError(err, 'comments.delete')
+  }
 }

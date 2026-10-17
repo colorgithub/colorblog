@@ -2,92 +2,293 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
-
+/* ============================================================
+   设计令牌
+   ============================================================ */
 @layer base {
   :root {
-    --background: 210 40% 98%;
-    --foreground: 222 47% 11%;
+    --background: 220 33% 99%;
+    --surface: 220 30% 97%;
+    --foreground: 224 32% 12%;
+
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
-    --border: 214 32% 91%;
-    --accent: 199 89% 48%;
+    --card-foreground: 224 32% 12%;
+
+    --muted: 220 22% 95%;
+    --muted-foreground: 220 12% 45%;
+
+    --border: 220 18% 90%;
+    --input: 220 18% 88%;
+    --ring: 243 72% 58%;
+
+    --accent: 243 72% 58%;
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 84% 60%;
+    --accent-subtle: 243 100% 97%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 158 64% 40%;
+    --warning: 32 95% 48%;
+
+    --pre-background: 224 30% 12%;
+    --pre-foreground: 220 20% 92%;
+    --shadow-color: 224 40% 30%;
   }
 
   .dark {
-    --background: 222 47% 11%;
-    --foreground: 210 40% 98%;
-    --card: 222 47% 14%;
-    --card-foreground: 210 40% 98%;
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
-    --border: 217 33% 20%;
-    --accent: 199 89% 48%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 62% 56%;
-  }
-}
+    --background: 224 28% 7%;
+    --surface: 224 24% 10%;
+    --foreground: 220 24% 96%;
 
-@layer base {
+    --card: 224 24% 10%;
+    --card-foreground: 220 24% 96%;
+
+    --muted: 223 20% 15%;
+    --muted-foreground: 220 14% 64%;
+
+    --border: 223 18% 19%;
+    --input: 223 18% 22%;
+    --ring: 243 80% 70%;
+
+    --accent: 243 80% 70%;
+    --accent-foreground: 224 40% 10%;
+    --accent-subtle: 243 40% 17%;
+
+    --destructive: 0 62% 58%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 158 58% 50%;
+    --warning: 32 90% 58%;
+
+    --pre-background: 224 30% 11%;
+    --pre-foreground: 220 20% 92%;
+    --shadow-color: 224 60% 2%;
+  }
+
   * {
-    @apply border-[hsl(var(--border))];
+    @apply border-border;
   }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
   body {
-    @apply bg-[hsl(var(--background))] text-[hsl(var(--foreground))];
-    font-feature-settings: "rlig" 1, "calt" 1;
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: 'rlig' 1, 'calt' 1, 'ss01' 1;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* 键盘可达性：只在键盘导航时显示焦点环 */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring/60 ring-offset-2 ring-offset-background;
+  }
+
+  ::selection {
+    background: hsl(var(--accent) / 0.22);
+  }
+
+  h1, h2, h3, h4 {
+    @apply tracking-tight;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
   }
 }
 
-.prose {
-  --tw-prose-body: hsl(var(--foreground));
-  --tw-prose-headings: hsl(var(--foreground));
-  --tw-prose-links: hsl(var(--accent));
-  --tw-prose-bold: hsl(var(--foreground));
-  --tw-prose-code: hsl(var(--foreground));
-  --tw-prose-quotes: hsl(var(--muted-foreground));
-  --tw-prose-quote-borders: hsl(var(--border));
+/* ============================================================
+   组件级工具类
+   ============================================================ */
+@layer components {
+  .container-page {
+    @apply mx-auto w-full max-w-5xl px-5 sm:px-6 lg:px-8;
+  }
+
+  .container-prose {
+    @apply mx-auto w-full max-w-3xl px-5 sm:px-6;
+  }
+
+  /* 半透明毛玻璃，用于吸顶导航 */
+  .glass {
+    background: hsl(var(--background) / 0.72);
+    backdrop-filter: saturate(180%) blur(16px);
+    -webkit-backdrop-filter: saturate(180%) blur(16px);
+  }
+
+  .card-surface {
+    @apply rounded-2xl border border-border bg-card shadow-soft;
+  }
+
+  /* 文章卡片：悬停时轻微上浮 + 描边染色 */
+  .card-interactive {
+    @apply relative rounded-2xl border border-border bg-card transition-all duration-300 ease-out;
+  }
+  .card-interactive:hover {
+    @apply -translate-y-0.5 border-accent/40 shadow-lift;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full border border-border bg-surface px-2.5 py-1
+           text-xs font-medium text-muted-foreground transition-colors;
+  }
+  .chip:hover {
+    @apply border-accent/40 text-accent;
+  }
+
+  .btn {
+    @apply inline-flex select-none items-center justify-center gap-2 rounded-xl text-sm font-medium
+           transition-all duration-200 disabled:pointer-events-none disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-accent text-accent-foreground shadow-soft hover:brightness-110 active:scale-[0.98];
+  }
+  .btn-ghost {
+    @apply btn border border-border bg-card text-foreground hover:border-accent/40 hover:text-accent active:scale-[0.98];
+  }
+  .btn-subtle {
+    @apply btn text-muted-foreground hover:bg-muted hover:text-foreground;
+  }
+  .btn-danger {
+    @apply btn text-muted-foreground hover:bg-destructive/10 hover:text-destructive;
+  }
+  .btn-sm {
+    @apply h-8 px-3 text-xs;
+  }
+  .btn-md {
+    @apply h-10 px-4;
+  }
+  .btn-icon {
+    @apply h-9 w-9 p-0;
+  }
+
+  .input-field {
+    @apply w-full rounded-xl border border-input bg-card px-3.5 py-2.5 text-sm text-foreground
+           placeholder:text-muted-foreground/70 transition-all
+           focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20;
+  }
+
+  .label-field {
+    @apply mb-1.5 block text-sm font-medium text-foreground;
+  }
+
+  /* 首屏装饰性网格背景 */
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, hsl(var(--border) / 0.7) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--border) / 0.7) 1px, transparent 1px);
+    background-size: 56px 56px;
+  }
+
+  .skeleton {
+    @apply relative overflow-hidden rounded-lg bg-muted;
+  }
+  .skeleton::after {
+    content: '';
+    @apply absolute inset-0 -translate-x-full animate-shimmer;
+    background-image: linear-gradient(90deg, transparent, hsl(var(--foreground) / 0.06), transparent);
+  }
 }
 
-/* Smooth scroll */
-html {
-  scroll-behavior: smooth;
+/* ============================================================
+   代码高亮（rehype-highlight / highlight.js 的类名）
+   原项目装了 rehype-highlight 却没有任何 hljs 样式，
+   代码块等于完全没有高亮。这里补一套明暗通用的配色。
+   ============================================================ */
+.hljs-comment,
+.hljs-quote {
+  color: #8b93a7;
+  font-style: italic;
+}
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal,
+.hljs-section,
+.hljs-doctag,
+.hljs-type,
+.hljs-name,
+.hljs-strong {
+  color: #c792ea;
+}
+.hljs-string,
+.hljs-regexp,
+.hljs-addition,
+.hljs-attribute,
+.hljs-meta .hljs-string {
+  color: #a5e075;
+}
+.hljs-number,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-link,
+.hljs-selector-attr,
+.hljs-selector-pseudo,
+.hljs-template-variable,
+.hljs-variable {
+  color: #f78c6c;
+}
+.hljs-title,
+.hljs-title.class_,
+.hljs-title.function_,
+.hljs-built_in {
+  color: #82aaff;
+}
+.hljs-attr,
+.hljs-property,
+.hljs-selector-class,
+.hljs-selector-id {
+  color: #ffcb6b;
+}
+.hljs-meta,
+.hljs-tag {
+  color: #89ddff;
+}
+.hljs-deletion {
+  color: #ff5370;
+}
+.hljs-emphasis {
+  font-style: italic;
 }
 
-/* Custom scrollbar */
+/* ============================================================
+   滚动条
+   ============================================================ */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 10px;
+  height: 10px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: hsl(var(--muted-foreground) / 0.3);
-  border-radius: 3px;
+  background: hsl(var(--muted-foreground) / 0.28);
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground) / 0.5);
+  background-clip: content-box;
 }
 
-/* Animation */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+/* 尊重「减少动态效果」的系统设置 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
-.animate-fade-in {
-  animation: fadeIn 0.5s ease-out forwards;
-}
-
-/* Toast styles */
-.toast-success {
-  background: #10b981 !important;
-  color: white !important;
-}
-.toast-error {
-  background: #ef4444 !important;
-  color: white !important;
+/* 打印：去掉导航和评论区 */
+@media print {
+  header,
+  footer,
+  .no-print {
+    display: none !important;
+  }
 }
