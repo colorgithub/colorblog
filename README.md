@@ -41,7 +41,7 @@ npm run dev
 | --- | --- | --- |
 | `POSTGRES_URL_NON_POOLING` | ✅ | PostgreSQL 连接串。Vercel + Neon 会自动注入 |
 | `JWT_SECRET` | ✅ | 会话签名密钥，**≥ 32 字符**。缺失或过短会让构建失败（有意为之） |
-| `VAULT_ISSUER` | ✅ | MemoVault 对外地址，如 `https://vault.example.com`（不带结尾斜杠） |
+| `VAULT_ISSUER` | ✅ | MemoVault 对外地址，如 `https://vault.colordev.space`（不带结尾斜杠） |
 | `OAUTH_CLIENT_ID` | ✅ | 与 vault 的 `OAUTH_CLIENTS` 里 `clientId` 一致 |
 | `OAUTH_CLIENT_SECRET` | ✅ | 与 vault 的 `OAUTH_CLIENTS` 里 `clientSecret` 一致 |
 | `OAUTH_REDIRECT_URI` | ✅ | 必须与 vault 登记的 `redirectUris` **完全一致** |
@@ -138,16 +138,15 @@ node scripts/archive-legacy-users.mjs --apply
 1. **先部署 vault**，按它的 README 配置数据库、`AUTH_SECRET`，以及：
    ```bash
    OAUTH_CLIENTS='[{"clientId":"my-blog","clientSecret":"<随机串>","name":"我的博客",
-     "redirectUris":["https://blog.example.com/api/auth/oauth/callback"]}]'
-   OAUTH_ISSUER="https://vault.example.com"
+     "redirectUris":["https://blog.colordev.space/api/auth/oauth/callback"]}]'
    ```
 2. **再部署本站**，环境变量填上一步的 `clientId` / `clientSecret`：
    ```
-   VAULT_ISSUER=https://vault.example.com
+   VAULT_ISSUER=https://vault.colordev.space
    OAUTH_CLIENT_ID=my-blog
    OAUTH_CLIENT_SECRET=<与 vault 里一致的随机串>
-   OAUTH_REDIRECT_URI=https://blog.example.com/api/auth/oauth/callback
-   ADMIN_EMAILS=you@example.com
+   OAUTH_REDIRECT_URI=https://blog.colordev.space/api/auth/oauth/callback
+   ADMIN_EMAILS=<你的 MemoVault 邮箱>
    JWT_SECRET=<随机串，≥32 字符>
    ```
 3. 用 MemoVault 账号登录一次，确认能进 `/admin`
