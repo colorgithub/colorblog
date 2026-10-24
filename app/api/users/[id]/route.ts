@@ -5,8 +5,10 @@ import { handleApiError, readJson } from '@/lib/api-error'
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
+
   const guard = await requireAdmin()
   if (!guard.ok) return guard.response
   const { session } = guard
@@ -19,7 +21,7 @@ export async function PATCH(
 
   try {
     const user = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { id: true, role: true },
     })
     if (!user) {
@@ -50,15 +52,17 @@ export async function PATCH(
 
 export async function DELETE(
   _request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
+
   const guard = await requireAdmin()
   if (!guard.ok) return guard.response
   const { session } = guard
 
   try {
     const user = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { id: true, role: true },
     })
     if (!user) {

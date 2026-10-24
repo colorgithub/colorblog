@@ -12,11 +12,14 @@ function encodeFilename(name: string): string {
 
 export async function GET(
   _request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  // Next 15 起 route handler 的 params 是 Promise，必须 await
+  const { id } = await params
+
   try {
     const file = await prisma.file.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { name: true, type: true, data: true },
     })
     if (!file) {

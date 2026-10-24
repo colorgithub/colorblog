@@ -6,15 +6,18 @@ import { handleApiError } from '@/lib/api-error'
 
 export async function DELETE(
   _request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  // Next 15 起 route handler 的 params 是 Promise，必须 await
+  const { id } = await params
+
   const guard = await requireLogin()
   if (!guard.ok) return guard.response
   const { session } = guard
 
   try {
     const comment = await prisma.comment.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { id: true, userId: true },
     })
     if (!comment) {

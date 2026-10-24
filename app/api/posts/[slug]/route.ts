@@ -14,10 +14,13 @@ async function findPost(slugOrId: string) {
 
 export async function GET(
   _request: Request,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
+  // Next 15 起 route handler 的 params 是 Promise，必须 await
+  const { slug } = await params
+
   try {
-    const post = await findPost(params.slug)
+    const post = await findPost(slug)
     // 未发布文章对非管理员一律按「不存在」处理，避免通过状态码差异探测草稿
     if (!post) return NextResponse.json({ error: '文章不存在' }, { status: 404 })
 
@@ -34,8 +37,10 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
+  const { slug } = await params
+
   // 只有管理员能改文章。原实现只判断「是否登录」，任何注册用户都能改写全站内容。
   const guard = await requireAdmin()
   if (!guard.ok) return guard.response
@@ -47,7 +52,7 @@ export async function PUT(
   }
 
   try {
-    const post = await findPost(params.slug)
+    const post = await findPost(slug)
     if (!post) return NextResponse.json({ error: '文章不存在' }, { status: 404 })
 
     const updated = await prisma.post.update({
@@ -62,13 +67,15 @@ export async function PUT(
 
 export async function DELETE(
   _request: Request,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
+  const { slug } = await params
+
   const guard = await requireAdmin()
   if (!guard.ok) return guard.response
 
   try {
-    const post = await findPost(params.slug)
+    const post = await findPost(slug)
     if (!post) return NextResponse.json({ error: '文章不存在' }, { status: 404 })
 
     await prisma.post.delete({ where: { id: post.id } })

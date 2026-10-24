@@ -4,8 +4,10 @@ import { ArrowLeft, ExternalLink } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 import { PostEditor } from '@/components/admin/PostEditor'
 
-export default async function EditPostPage({ params }: { params: { id: string } }) {
-  const post = await prisma.post.findUnique({ where: { id: params.id } })
+export default async function EditPostPage({ params }: { params: Promise<{ id: string }> }) {
+  // Next 15 起 params 是 Promise
+  const { id } = await params
+  const post = await prisma.post.findUnique({ where: { id } })
   if (!post) notFound()
 
   return (

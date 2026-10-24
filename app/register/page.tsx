@@ -10,12 +10,14 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 }
 
-export default function RegisterPage({
+export default async function RegisterPage({
   searchParams,
 }: {
-  searchParams: { next?: string }
+  // Next 15 起 searchParams 是 Promise
+  searchParams: Promise<{ next?: string }>
 }) {
-  const next = safeReturnPath(searchParams.next, '/')
+  const sp = await searchParams
+  const next = safeReturnPath(sp.next, '/')
   const issuer = isOAuthConfigured()
     ? (process.env.VAULT_ISSUER ?? '').replace(/\/+$/, '') || null
     : null

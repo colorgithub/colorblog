@@ -11,11 +11,14 @@ const MAX_PAGE_SIZE = 100
 
 export async function GET(
   request: Request,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
+  // Next 15 起 route handler 的 params 是 Promise，必须 await
+  const { slug } = await params
+
   try {
     const post = await prisma.post.findUnique({
-      where: { slug: params.slug },
+      where: { slug },
       select: { id: true, published: true },
     })
 
@@ -55,8 +58,10 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
+  const { slug } = await params
+
   const guard = await requireLogin()
   if (!guard.ok) return guard.response
   const { session } = guard
@@ -82,7 +87,7 @@ export async function POST(
 
   try {
     const post = await prisma.post.findUnique({
-      where: { slug: params.slug },
+      where: { slug },
       select: { id: true, published: true },
     })
     if (!post) {

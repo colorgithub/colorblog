@@ -13,7 +13,8 @@ export const metadata: Metadata = {
 const PAGE_SIZE = 9
 
 interface PageProps {
-  searchParams: { q?: string; tag?: string; page?: string }
+  // Next 15 起 searchParams 是 Promise
+  searchParams: Promise<{ q?: string; tag?: string; page?: string }>
 }
 
 function buildQuery(params: { q?: string; tag?: string; page?: number }) {
@@ -73,9 +74,10 @@ async function getArchive({ q, tag, page }: { q: string; tag: string; page: numb
 }
 
 export default async function PostsPage({ searchParams }: PageProps) {
-  const q = (searchParams.q ?? '').trim()
-  const tag = (searchParams.tag ?? '').trim()
-  const page = Math.max(1, Number(searchParams.page) || 1)
+  const sp = await searchParams
+  const q = (sp.q ?? '').trim()
+  const tag = (sp.tag ?? '').trim()
+  const page = Math.max(1, Number(sp.page) || 1)
 
   const { posts, total, tags } = await getArchive({ q, tag, page })
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))

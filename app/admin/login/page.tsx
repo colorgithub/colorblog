@@ -16,9 +16,11 @@ export const dynamic = 'force-dynamic'
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: { next?: string; error?: string }
+  // Next 15 起 searchParams 是 Promise
+  searchParams: Promise<{ next?: string; error?: string }>
 }) {
-  const next = safeReturnPath(searchParams.next, '/')
+  const sp = await searchParams
+  const next = safeReturnPath(sp.next, '/')
 
   // 已登录就没必要再看登录页
   const session = await getSession()
@@ -38,7 +40,7 @@ export default async function LoginPage({
       <div className="relative w-full max-w-sm">
         <LoginForm
           next={next}
-          errorCode={searchParams.error}
+          errorCode={sp.error}
           issuer={issuer}
           configured={configured}
         />
