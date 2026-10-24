@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter, JetBrains_Mono } from 'next/font/google'
+import Script from 'next/script'
 import { Toaster } from 'react-hot-toast'
 import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
@@ -69,11 +70,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="zh-CN" className={`${sans.variable} ${mono.variable}`} suppressHydrationWarning>
       <body className="flex min-h-screen flex-col">
         {/*
-          不要手写 <head>：Next 15 / React 19 自己管理 head 并把 <script> 提升进去。
-          手写的 <head> 会和它注入的 meta/link 抢位置，导致 <head> 子节点顺序对不上，
-          进而在静态页面上触发 hydration mismatch。
+          用 next/script 而不是裸 <script>：React 19 会把组件树里的 <script> 提升到
+          head，和服务端放在 body 的位置对不上，实测还会在 DOM 里留下多份副本，
+          最终触发 hydration mismatch（React #418）。交给框架注入就不参与 hydration diff。
         */}
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <Script id="theme-init" strategy="beforeInteractive">
+          {themeInitScript}
+        </Script>
         <ThemeProvider>
           <Header />
           <main className="flex-1">{children}</main>
