@@ -4,8 +4,12 @@ import { prisma } from '@/lib/prisma'
 import { SITE_NAME } from '@/lib/site'
 import { PostCard, EmptyPosts, type PostCardData } from '@/components/PostCard'
 
-// 首页走 ISR：60 秒重新验证一次，不必每个请求都查库
-export const revalidate = 60
+// 首页原先走 ISR（revalidate = 60）。升级到 Next 15 + React 19 后，预渲染出来的
+// 静态 HTML 在 hydration 时稳定报 React #418（<html> 不匹配），而同样的 layout
+// 在动态页面上完全正常 —— 差别只在于静态页把 title/og/twitter 等 metadata 全部
+// 写进了首屏 HTML，动态页则是流式补上的。改成按请求渲染以消除这个不匹配；
+// 个人博客的查询量下这点开销可以忽略。
+export const dynamic = 'force-dynamic'
 
 const HOME_LIMIT = 7
 
