@@ -67,10 +67,13 @@ const themeInitScript = `
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="zh-CN" className={`${sans.variable} ${mono.variable}`} suppressHydrationWarning>
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
-      </head>
       <body className="flex min-h-screen flex-col">
+        {/*
+          不要手写 <head>：Next 15 / React 19 自己管理 head 并把 <script> 提升进去。
+          手写的 <head> 会和它注入的 meta/link 抢位置，导致 <head> 子节点顺序对不上，
+          进而在静态页面上触发 hydration mismatch。
+        */}
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         <ThemeProvider>
           <Header />
           <main className="flex-1">{children}</main>
